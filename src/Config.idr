@@ -2,9 +2,15 @@ module Config
 
 
 public export
+data Location
+    = Link String
+    --| Local String
+
+
+public export
 record Dependency where
     constructor MkDep
-    link : String
+    loc : Location
 
 
 public export
@@ -15,8 +21,14 @@ record Config where
 
 
 export
-parseConfig : IO Config
-parseConfig = pure example
+parseConfig : (dir : String) -> IO Config
+parseConfig dir = pure example
     where
         example : Config
-        example = MkConfig [MkDep "https://github.com/ShinKage/idris2-sdl"]
+        example = MkConfig [MkDep { loc = Link "https://github.com/ShinKage/idris2-sdl" }]
+
+
+
+public export
+Eq Location where
+    (Link x) == (Link y) = x == y
