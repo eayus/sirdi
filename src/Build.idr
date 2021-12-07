@@ -24,9 +24,10 @@ fetchDeps = execStateT [] . fetchDeps'
                       success <- system "git clone \{link} tmp/\{name}"
                       modify ((Link link, name) ::)
 
-                      depConfig <- lift $ parseConfig name
+                      depConfig <- lift $ parseConfig "tmp\{name}"
                       fetchDeps' depConfig)
                    else putStrLn "Skipping \{link}, already downloaded..."
+
 
 
 export
