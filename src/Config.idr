@@ -8,16 +8,10 @@ data Location
 
 
 public export
-record Dependency where
-    constructor MkDep
-    loc : Location
-
-
-public export
 record Config where
     constructor MkConfig
-    deps : List Dependency
-
+    deps : List Location
+    modules : List (String) --| Need a better type for this one
 
 
 export
@@ -25,10 +19,18 @@ parseConfig : (dir : String) -> IO Config
 parseConfig dir = pure example
     where
         example : Config
-        example = MkConfig [MkDep { loc = Link "https://github.com/ShinKage/idris2-sdl" }]
-
+        example = MkConfig
+          {
+            deps = [ Link "https://github.com/ShinKage/idris2-sdl" ],
+            modules = [ "SDL" ]
+          }
 
 
 public export
 Eq Location where
     (Link x) == (Link y) = x == y
+
+
+public export
+Show Location where
+    show (Link s) = "Link \{s}"
