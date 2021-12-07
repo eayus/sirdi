@@ -6,6 +6,7 @@ import System.Directory
 import Control.Monad.State
 import Data.List
 import Data.Maybe
+import Ipkg
 
 
 fetchTo : Location -> String -> IO ()
@@ -50,12 +51,22 @@ forceLookup x xs = assert_total $ case lookup x xs of Just y => y
 buildProject : String -> List (Location, String) -> IO ()
 buildProject dir locs = do
     config <- parseConfig dir
-    traverse_ (\loc => buildProject (forceLookup loc locs) locs) config.deps
+    traverse_ (\loc => buildDep loc locs) config.deps
 
-    --let depsPath = "tmp/deps/"
-    --_ <- system "IDRIS2_PACKAGE_PATH=\{depsPath} idris2 --build \{dir}/\{config.ipkg}"
+    let depNames = map (\loc => forceLookup loc locs) config.deps
+    let ipkg = MkIpkg { name = "pname", depends = depNames, modules = config.modules }
 
-    pure ()
+    writeIpkg ipkg "\{dir}/pname.ipkg"
+
+    ignore $ system "IDRIS2_PACKAGE_PATH=tmp/deps idris2 --build \{dir}/pname.ipkg"
+        where
+            buildDep : Location -> List (Location, String) -> IO ()
+            buildDep loc locs = do
+                let name = forceLookup loc locs
+                buildProject "tmp/sources/\{name}" locs
+
+                ignore $ createDir "tmp/deps/\{name}"
+                ignore $ system "cp -r tmp/sources/\{name}/build/ttc/* tmp/deps/\{name}/"
 
 
 export
