@@ -1,6 +1,7 @@
 module Main
 
 import Collie
+import Config
 
 
 mainCommand : Command "sirdi"
