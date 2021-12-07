@@ -10,7 +10,8 @@ import Ipkg
 
 
 fetchTo : Location -> String -> IO ()
-fetchTo (Link link) fp = ignore $ system "git clone \{link} \{fp}"
+fetchTo (Link link) dest = ignore $ system "git clone \{link} \{dest}"
+fetchTo (Local source) dest = ignore $ system "cp -r \{source} \{dest}"
 
 
 fetchDeps : String -> IO (List (Location, String))
