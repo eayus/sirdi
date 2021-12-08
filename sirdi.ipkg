@@ -10,7 +10,7 @@ authors = "Ellis Kesterton"
 -- bugtracker =
 
 -- packages to add to search path
-depends = collie
+depends = collie, contrib
 
 -- modules to install
 -- modules =
