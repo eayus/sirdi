@@ -35,7 +35,12 @@ parseConfig s = case parse s of
                      Just (JObject obj) => do
                         deps <- lookup "deps" obj >>= parseDeps
                         mods <- lookup "modules" obj >>= parseMods
-                        let main = lookup "main" obj >>= parseMain
+
+                        -- This looks strange but the crucial part is that if the "main" key
+                        -- is present, then we should fail if it can't parse the corresponding
+                        -- JSON. Equally, if the key isn't present, then that should be fine too.
+                        let main = parseMain <$> lookup "main" obj
+                        main <- sequence main
 
                         let pthru = catMaybes . sequence $
                             (lookup "passthru" obj >>= parsePassthru)
