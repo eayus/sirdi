@@ -49,29 +49,6 @@ doBuild name = do
     ignore $ mIO $ system "\{setpath} idris2 --build \{dir}/\{name}.ipkg"
 
 
-{-
-fetchDeps : String -> M (List (Location, String))
-fetchDeps = execStateT [] . fetchDeps'
-    where
-        mutual
-            fetchDeps' : String -> StateT (List (Location, String)) M ()
-            fetchDeps' name = do
-                config <- lift $ readConfig ".build/sources/\{name}"
-                traverse_ fetchDep config.deps
-
-
-            fetchDep : Location -> StateT (List (Location, String)) M ()
-            fetchDep loc =
-                if loc `elem` map fst !get
-                    then lift $ mIO $ putStrLn "Skipping fetching \{show loc}, already encountered"
-                    else do
-                        --let name = "dep\{show (length !get)}"
-                        let name = hashLoc loc
-                        lift $ fetchTo loc ".build/sources/\{name}"
-                        modify ((loc, name) ::)
-                        fetchDeps' name-}
-
-
 -- Eventually this should return a depdency tree!
 fetchDeps : String -> M ()
 fetchDeps name = do
@@ -86,8 +63,6 @@ fetchDeps name = do
             n <- mIO $ system "[ -d '.build/sources/\{depName}' ]"
             when (n /= 0) (fetchTo loc ".build/sources/\{depName}")
 
-            when (n == 0) (mIO $ putStrLn "Already fetched \{show loc}, skipping")
-            
             fetchDeps depName
 
 
