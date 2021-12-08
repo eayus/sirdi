@@ -3,7 +3,6 @@ module Build
 import Config
 import System
 import System.Directory
-import Control.Monad.State
 import Data.List
 import Data.Maybe
 import Ipkg
@@ -54,6 +53,9 @@ doBuild name = do
 
 
 -- Eventually this should return a depdency tree!
+-- Then we can feed that tree into doBuild, so that it doesn't have to
+-- re-read config files. In addition, we can define a new command to
+-- print the dep tree.
 fetchDeps : String -> M ()
 fetchDeps name = do
     config <- readConfig ".build/sources/\{name}"
@@ -86,3 +88,27 @@ build = do
 export
 run : M ()
 run = ignore $ mIO $ system ".build/sources/main/build/exec/main"
+
+
+export
+new : String -> M ()
+new name = do
+    ignore $ mIO $ createDir "\{name}"
+    ignore $ mIO $ createDir "\{name}/src"
+
+    ignore $ mIO $ writeFile "\{name}/sirdi.json" jsonFile
+    ignore $ mIO $ writeFile "\{name}/src/Main.idr" idrFile
+        where
+            idrFile : String
+            idrFile = """
+            module Main
+
+            main : IO ()
+            main = putStrLn "Hello from Idris2!"
+            """
+
+            jsonFile : String
+            jsonFile = """
+            { "deps": [ ], "modules": [ "Main" ], "main": "Main" }
+
+            """
