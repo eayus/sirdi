@@ -15,23 +15,43 @@ public export
 record Config where
     constructor MkConfig
     deps : List Location
-    modules : List (String) -- Need a better type for this one
+    modules : List String -- Need a better type for module names maybe?
+    main : Maybe String
 
 
 parseConfig : String -> Maybe Config
 parseConfig s = case parse s of
-                     Just (JObject [("deps", JArray deps), ("modules", JArray mods)]) => Just $ MkConfig (catMaybes $ map parseLoc deps) (catMaybes $ map getStr mods)
+                     Just (JObject obj) => do
+                        deps <- lookup "deps" obj >>= parseDeps
+                        mods <- lookup "modules" obj >>= parseMods
+
+
+                        -- Surely there is a better way of writing this lol
+                        let main = parseMain <$> lookup "main" obj
+                        main <- sequence main
+
+                        Just $ MkConfig deps mods main
                      _ => Nothing
       where
             getStr : JSON -> Maybe String
             getStr (JString s) = Just s
             getStr _ = Nothing
 
-
             parseLoc : JSON -> Maybe Location
             parseLoc (JObject [("link", x)]) = Link <$> getStr x
             parseLoc (JObject [("local", x)]) = Local <$> getStr x
             parseLoc _ = Nothing
+
+            parseMain : JSON -> Maybe String
+            parseMain = getStr
+
+            parseDeps : JSON -> Maybe (List Location)
+            parseDeps (JArray deps) = sequence (map parseLoc deps)
+            parseDeps _ = Nothing
+
+            parseMods : JSON -> Maybe (List String)
+            parseMods (JArray mods) = sequence (map getStr mods)
+            parseMods _ = Nothing
 
 
 export
