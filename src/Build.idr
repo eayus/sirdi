@@ -76,7 +76,7 @@ build = do
     createBuildDirs
 
     ignore $ mIO $ createDir ".build/sources/main"
-    ignore $ mIO $ system "cp ./sirdi.dhall .build/sources/main"
+    ignore $ mIO $ system "cp ./sirdi.json .build/sources/main"
     ignore $ mIO $ system "cp -r ./src .build/sources/main"
 
     depLocs <- fetchDeps "main"

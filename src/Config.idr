@@ -20,7 +20,7 @@ record Config where
 
 parseConfig : String -> Maybe Config
 parseConfig s = case parse s of
-                     Just (JObject [("deps", JArray deps), ("modules", JArray mods)]) => Just $ MkConfig (catMaybes $ map ((Local <$>) . getStr) deps) (catMaybes $ map getStr mods)
+                     Just (JObject [("deps", JArray deps), ("modules", JArray mods)]) => Just $ MkConfig (catMaybes $ map parseLoc deps) (catMaybes $ map getStr mods)
                      _ => Nothing
       where
             getStr : JSON -> Maybe String
@@ -28,10 +28,16 @@ parseConfig s = case parse s of
             getStr _ = Nothing
 
 
+            parseLoc : JSON -> Maybe Location
+            parseLoc (JObject [("link", x)]) = Link <$> getStr x
+            parseLoc (JObject [("local", x)]) = Local <$> getStr x
+            parseLoc _ = Nothing
+
+
 export
 readConfig : (dir : String) -> M Config
 readConfig dir = do
-    let filepath = "\{dir}/sirdi.dhall"
+    let filepath = "\{dir}/sirdi.json"
 
     Right contents <- mIO (readFile filepath) | Left err => mErr "Can't find file \{filepath}"
 
