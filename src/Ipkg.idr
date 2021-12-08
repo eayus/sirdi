@@ -21,7 +21,7 @@ Show Ipkg where
     show p = let depends = if p.depends == [] then "" else "depends = \{concat $ intersperse ", " p.depends}"
                  mains = case p.main of { Just s => "main = \{s}"; Nothing => "" }
                  exec = case p.exec of { Just s => "executable = \{s}"; Nothing => "" }
-                 passthru = unlines $ map (\(k, s) => "\{k} = \{show s}" ) p.passthru
+                 passthru = fastUnlines $ map (\(k, s) => "\{k} = \"\{s}\"" ) p.passthru
       in """
 package \{p.name}
 sourcedir = "src"

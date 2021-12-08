@@ -9,6 +9,6 @@
   ],
   "main": "Nia",
   "passthru": {
-    "prebuild": "echo Hello from Nias build phase"
+    "prebuild": "echo Hello from\necho Nia\\'s build phase"
   }
 }
