@@ -30,12 +30,13 @@ installDep name = do
 
 doBuild : String -> M ()
 doBuild name = do
+    mIO $ putStrLn "Building \{name}"
     let dir = ".build/sources/\{name}"
     config <- readConfig dir
 
     let depNames = map hashLoc config.deps
 
-    traverse_ (\depName => doBuild depName >> installDep depName) depNames
+    traverse_ doBuildDep depNames
 
     let ipkg = MkIpkg { name = name, depends = depNames, modules = config.modules, main = config.main, exec = "main" <$ config.main }
 
@@ -43,6 +44,13 @@ doBuild name = do
 
     let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
     ignore $ mIO $ system "\{setpath} idris2 --build \{dir}/\{name}.ipkg"
+        where
+            doBuildDep : String -> M ()
+            doBuildDep depName = do
+                n <- mIO $ system "[ -d '.build/deps/\{depName}' ]"
+
+                when (n /= 0) (doBuild depName >> installDep depName)
+                
 
 
 -- Eventually this should return a depdency tree!
