@@ -27,6 +27,7 @@ record Config where
     deps : List Location
     modules : List String -- Need a better type for module names maybe?
     main : Maybe String
+    passthru : List (String, String)
 
 
 parseConfig : String -> Maybe Config
@@ -34,13 +35,12 @@ parseConfig s = case parse s of
                      Just (JObject obj) => do
                         deps <- lookup "deps" obj >>= parseDeps
                         mods <- lookup "modules" obj >>= parseMods
+                        let main = lookup "main" obj >>= parseMain
 
+                        let pthru = catMaybes . sequence $
+                            (lookup "passthru" obj >>= parsePassthru)
 
-                        -- Surely there is a better way of writing this lol
-                        let main = parseMain <$> lookup "main" obj
-                        main <- sequence main
-
-                        Just $ MkConfig deps mods main
+                        Just $ MkConfig deps mods main pthru
                      _ => Nothing
       where
             getStr : JSON -> Maybe String
@@ -63,6 +63,13 @@ parseConfig s = case parse s of
             parseMods (JArray mods) = sequence (map getStr mods)
             parseMods _ = Nothing
 
+            parsePassthru : JSON -> Maybe (List (String, String))
+            parsePassthru (JObject p) = traverse go p
+                where
+                  go : (String, JSON) -> Maybe (String, String)
+                  go (name, JString s) = Just (name, s)
+                  go _ = Nothing
+            parsePassthru _ = Nothing
 
 export
 readConfig : (dir : String) -> M Config
