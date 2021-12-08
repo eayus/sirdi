@@ -1,0 +1,1 @@
+{ "deps": [ { "link" : "https://github.com/eayus/idris2-example" } ], "modules": [ "Nia" ], "main": "Nia" }
