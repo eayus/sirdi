@@ -22,10 +22,6 @@ createBuildDirs = do
     ignore $ mIO $ createDir ".build/deps"     -- Contains the built dependencies
 
 
-forceLookup : Eq a => a -> List (a, b) -> b
-forceLookup x xs = assert_total $ case lookup x xs of Just y => y
-
-
 installDep : String -> M ()
 installDep name = do
     ignore $ mIO $ createDir ".build/deps/\{name}"
