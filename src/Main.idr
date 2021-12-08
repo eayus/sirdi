@@ -2,6 +2,7 @@ module Main
 
 import Collie
 import Build
+import Util
 
 
 mainCommand : Command "sirdi"
@@ -19,6 +20,8 @@ main = do
   Right cmdParse <- mainCommand.parseArgs | Left err => putStrLn "Error: \{err}"
   case fst (lookup cmdParse) of
        "run"   => putStrLn "Running executable..."
-       "build" => putStrLn "Building project..." >> build
+       "build" => do
+          putStrLn "Building project..."
+          ignore $ runM build
        "new"   => putStrLn "Creating new project..."
        _       => putStrLn "Invalid command"

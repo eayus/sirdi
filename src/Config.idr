@@ -1,11 +1,15 @@
 module Config
 
+import System.File.ReadWrite
+import Language.JSON
+import Data.List
+import Util
+
 
 public export
 data Location
     = Link String
     | Local String
-
 
 public export
 record Config where
@@ -14,16 +18,26 @@ record Config where
     modules : List (String) -- Need a better type for this one
 
 
+parseConfig : String -> Maybe Config
+parseConfig s = case parse s of
+                     Just (JObject [("deps", JArray deps), ("modules", JArray mods)]) => Just $ MkConfig (catMaybes $ map ((Local <$>) . getStr) deps) (catMaybes $ map getStr mods)
+                     _ => Nothing
+      where
+            getStr : JSON -> Maybe String
+            getStr (JString s) = Just s
+            getStr _ = Nothing
+
+
 export
-parseConfig : (dir : String) -> IO Config
-parseConfig dir = pure example
-    where
-        example : Config
-        example = MkConfig
-          {
-            deps = [ Link "https://github.com/ShinKage/idris2-sdl" ],
-            modules = [ "SDL" ]
-          }
+readConfig : (dir : String) -> M Config
+readConfig dir = do
+    let filepath = "\{dir}/sirdi.dhall"
+
+    Right contents <- mIO (readFile filepath) | Left err => mErr "Can't find file \{filepath}"
+
+    case parseConfig contents of
+         Just config => pure config
+         Nothing => mErr "Failed to parse JSON."
 
 
 public export
