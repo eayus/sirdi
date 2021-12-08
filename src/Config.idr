@@ -3,7 +3,6 @@ module Config
 import System.File.ReadWrite
 import Language.JSON
 import Data.List
-import Data.Maybe
 import Util
 
 
@@ -36,11 +35,10 @@ parseConfig s = case parse s of
                      Just (JObject obj) => do
                         deps <- lookup "deps" obj >>= parseDeps
                         mods <- lookup "modules" obj >>= parseMods
+                        let main = lookup "main" obj >>= parseMain
 
-                        -- Surely there is a better way of writing this lol
-                        let main = parseMain <$> lookup "main" obj
-                        let pthru = fromMaybe [] (lookup "passthru" obj >>= parsePassthru)
-                        main <- sequence main
+                        let pthru = catMaybes . sequence $
+                            (lookup "passthru" obj >>= parsePassthru)
 
                         Just $ MkConfig deps mods main pthru
                      _ => Nothing
