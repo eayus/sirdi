@@ -37,7 +37,14 @@ doBuild name = do
 
     traverse_ doBuildDep depNames
 
-    let ipkg = MkIpkg { name = name, depends = depNames, modules = config.modules, main = config.main, exec = "main" <$ config.main }
+    let ipkg = MkIpkg {
+        name = name,
+        depends = depNames,
+        modules = config.modules,
+        main = config.main,
+        exec = "main" <$ config.main,
+        passthru = config.passthru
+    }
 
     writeIpkg ipkg "\{dir}/\{name}.ipkg"
 

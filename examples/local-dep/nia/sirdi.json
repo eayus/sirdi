@@ -1,1 +1,14 @@
-{ "deps": [ { "local" : "../examp" } ], "modules": [ "Nia" ], "main": "Nia" }
+{
+  "deps": [
+    {
+      "local": "../examp"
+    }
+  ],
+  "modules": [
+    "Nia"
+  ],
+  "main": "Nia",
+  "passthru": {
+    "prebuild": "echo Hello from Nias build phase"
+  }
+}
