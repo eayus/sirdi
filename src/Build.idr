@@ -49,6 +49,7 @@ doBuild name = do
     ignore $ mIO $ system "\{setpath} idris2 --build \{dir}/\{name}.ipkg"
 
 
+{-
 fetchDeps : String -> M (List (Location, String))
 fetchDeps = execStateT [] . fetchDeps'
     where
@@ -68,7 +69,26 @@ fetchDeps = execStateT [] . fetchDeps'
                         let name = hashLoc loc
                         lift $ fetchTo loc ".build/sources/\{name}"
                         modify ((loc, name) ::)
-                        fetchDeps' name
+                        fetchDeps' name-}
+
+
+-- Eventually this should return a depdency tree!
+fetchDeps : String -> M ()
+fetchDeps name = do
+    config <- readConfig ".build/sources/\{name}"
+
+    traverse_ fetchDep config.deps
+
+    where
+        fetchDep : Location -> M ()
+        fetchDep loc = do
+            let depName = hashLoc loc
+            n <- mIO $ system "[ -d '.build/sources/\{depName}' ]"
+            when (n /= 0) (fetchTo loc ".build/sources/\{depName}")
+
+            when (n == 0) (mIO $ putStrLn "Already fetched \{show loc}, skipping")
+            
+            fetchDeps depName
 
 
 export
@@ -80,8 +100,7 @@ build = do
     ignore $ mIO $ system "cp ./sirdi.json .build/sources/main"
     ignore $ mIO $ system "cp -r ./src .build/sources/main"
 
-    depLocs <- fetchDeps "main"
-
+    fetchDeps "main"
     doBuild "main"
 
 
