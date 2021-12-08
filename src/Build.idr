@@ -32,14 +32,14 @@ installDep name = do
     ignore $ mIO $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
 
 
-doBuild : String -> List (Location, String) -> M ()
-doBuild name depLocs = do
+doBuild : String -> M ()
+doBuild name = do
     let dir = ".build/sources/\{name}"
     config <- readConfig dir
 
-    let depNames = map (\x => forceLookup x depLocs) config.deps
+    let depNames = map hashLoc config.deps
 
-    traverse_ (\depName => doBuild depName depLocs >> installDep depName) depNames
+    traverse_ (\depName => doBuild depName >> installDep depName) depNames
 
     let ipkg = MkIpkg { name = name, depends = depNames, modules = config.modules, main = config.main, exec = "main" <$ config.main }
 
@@ -64,7 +64,8 @@ fetchDeps = execStateT [] . fetchDeps'
                 if loc `elem` map fst !get
                     then lift $ mIO $ putStrLn "Skipping fetching \{show loc}, already encountered"
                     else do
-                        let name = "dep\{show (length !get)}"
+                        --let name = "dep\{show (length !get)}"
+                        let name = hashLoc loc
                         lift $ fetchTo loc ".build/sources/\{name}"
                         modify ((loc, name) ::)
                         fetchDeps' name
@@ -81,7 +82,7 @@ build = do
 
     depLocs <- fetchDeps "main"
 
-    doBuild "main" depLocs
+    doBuild "main"
 
 
 export
