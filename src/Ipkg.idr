@@ -14,13 +14,13 @@ record Ipkg where
 
 
 Show Ipkg where
-    show p = """
+    show p = let depends = if p.depends == [] then "" else "depends = \{concat $ intersperse ", " p.depends}" in """
 package \{p.name}
 sourcedir = "src"
 modules = \{concat $ intersperse ", " p.modules}
+\{depends}
 """
 
--- depends = \{concat $ intersperse ", " p.depends}
 
 public export
 writeIpkg : Ipkg -> String -> M ()

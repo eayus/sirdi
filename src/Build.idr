@@ -10,35 +10,9 @@ import Ipkg
 import Util
 
 
-fetchTo : Location -> String -> IO ()
-fetchTo (Link link) dest = ignore $ system "git clone \{link} \{dest}"
-fetchTo (Local source) dest = ignore $ system "cp -r \{source} \{dest}"
-
-
-{-
-fetchDeps : String -> IO (List (Location, String))
-fetchDeps = execStateT [] . fetchDeps'
-    where
-        mutual
-            fetchDeps' : String -> StateT (List (Location, String)) IO ()
-            fetchDeps' projectDir = do
-                config <- lift $ readConfig projectDir
-                traverse_ fetchDep config.deps
-
-            -- This shouldn't infitely loop, however it doesn't explicitly error
-            -- if a project depends on itself
-
-            fetchDep : Location -> StateT (List (Location, String)) IO ()
-            fetchDep loc =
-              if not (loc `elem` map fst !get) then
-                  (do
-                      let name = "dep\{show (length !get)}"
-                      lift $ fetchTo loc ".build/sources/\{name}"
-                      modify ((loc, name) ::)
-
-                      fetchDeps' ".build/sources/\{name}")
-                    else putStrLn "Skipping \{show loc}, already downloaded..."
-                    -}
+fetchTo : Location -> String -> M ()
+fetchTo (Link link) dest = mIO $ ignore $ system "git clone \{link} \{dest}"
+fetchTo (Local source) dest = mIO $ ignore $ system "cp -r \{source} \{dest}"
 
 
 createBuildDirs : M ()
@@ -51,37 +25,49 @@ createBuildDirs = do
 forceLookup : Eq a => a -> List (a, b) -> b
 forceLookup x xs = assert_total $ case lookup x xs of Just y => y
 
-{-
-buildProject : String -> List (Location, String) -> IO ()
-buildProject dir locs = do
-    config <- readConfig dir
-    traverse_ (\loc => buildDep loc locs) config.deps
 
-    let depNames = map (\loc => forceLookup loc locs) config.deps
-    let ipkg = MkIpkg { name = "pname", depends = depNames, modules = config.modules }
+installDep : String -> M ()
+installDep name = do
+    ignore $ mIO $ createDir ".build/deps/\{name}"
+    ignore $ mIO $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
 
-    writeIpkg ipkg "\{dir}/pname.ipkg"
 
-    ignore $ system "IDRIS2_PACKAGE_PATH=.build/deps idris2 --build \{dir}/pname.ipkg"
-        where
-            buildDep : Location -> List (Location, String) -> IO ()
-            buildDep loc locs = do
-                let name = forceLookup loc locs
-                buildProject ".build/sources/\{name}" locs
-
-                ignore $ createDir ".build/deps/\{name}"
-                ignore $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
-                -}
-
-doBuild : String -> M ()
-doBuild name = do
+doBuild : String -> List (Location, String) -> M ()
+doBuild name depLocs = do
     let dir = ".build/sources/\{name}"
     config <- readConfig dir
 
-    let ipkg = MkIpkg { name = name, depends = [], modules = config.modules }
+    let depNames = map (\x => forceLookup x depLocs) config.deps
+
+    traverse_ (\depName => doBuild depName depLocs >> installDep depName) depNames
+
+    let ipkg = MkIpkg { name = name, depends = depNames, modules = config.modules }
 
     writeIpkg ipkg "\{dir}/\{name}.ipkg"
-    ignore $ mIO $ system "idris2 --build \{dir}/\{name}.ipkg"
+
+    let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
+    ignore $ mIO $ system "\{setpath} idris2 --build \{dir}/\{name}.ipkg"
+
+
+fetchDeps : String -> M (List (Location, String))
+fetchDeps = execStateT [] . fetchDeps'
+    where
+        mutual
+            fetchDeps' : String -> StateT (List (Location, String)) M ()
+            fetchDeps' name = do
+                config <- lift $ readConfig ".build/sources/\{name}"
+                traverse_ fetchDep config.deps
+
+
+            fetchDep : Location -> StateT (List (Location, String)) M ()
+            fetchDep loc =
+                if loc `elem` map fst !get
+                    then lift $ mIO $ putStrLn "Skipping fetching \{show loc}, already encountered"
+                    else do
+                        let name = "dep\{show (length !get)}"
+                        lift $ fetchTo loc ".build/sources/\{name}"
+                        modify ((loc, name) ::)
+                        fetchDeps' name
 
 
 export
@@ -93,8 +79,6 @@ build = do
     ignore $ mIO $ system "cp ./sirdi.dhall .build/sources/main"
     ignore $ mIO $ system "cp -r ./src .build/sources/main"
 
-    doBuild "main"
+    depLocs <- fetchDeps "main"
 
-
-    --locs <- fetchDeps "."
-    --buildProject ".build/deps/dep0" locs
+    doBuild "main" depLocs
