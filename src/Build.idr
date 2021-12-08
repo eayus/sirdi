@@ -41,7 +41,7 @@ doBuild name depLocs = do
 
     traverse_ (\depName => doBuild depName depLocs >> installDep depName) depNames
 
-    let ipkg = MkIpkg { name = name, depends = depNames, modules = config.modules }
+    let ipkg = MkIpkg { name = name, depends = depNames, modules = config.modules, main = config.main, exec = "main" <$ config.main }
 
     writeIpkg ipkg "\{dir}/\{name}.ipkg"
 
@@ -82,3 +82,8 @@ build = do
     depLocs <- fetchDeps "main"
 
     doBuild "main" depLocs
+
+
+export
+run : M ()
+run = ignore $ mIO $ system ".build/sources/main/build/exec/main"

@@ -19,7 +19,7 @@ main : IO ()
 main = do
   Right cmdParse <- mainCommand.parseArgs | Left err => putStrLn "Error: \{err}"
   case fst (lookup cmdParse) of
-       "run"   => putStrLn "Running executable..."
+       "run"   => ignore $ runM run
        "build" => do
           putStrLn "Building project..."
           ignore $ runM build
