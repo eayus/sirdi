@@ -7,12 +7,6 @@ import Util
 import Data.Hashable
 
 
-{-public export
-data Location
-    = Link String
-    | Local String-}
-
-
 public export
 URL, FilePath : Type
 URL = String
@@ -40,13 +34,6 @@ hashSource (Local fp) = show $ hash fp
 export
 depID : Dependency -> String
 depID dep = "\{dep.name}\{hashSource dep.source}"
-
-{-
-export
-hashLoc : Location -> String
-hashLoc (Link s) = "dep\{show $ hash s}"
-hashLoc (Local s) = "dep\{show $ hash s}"-}
-
 
 
 public export
@@ -127,17 +114,3 @@ readConfig dir = do
     case parseConfig contents of
          Just config => pure config
          Nothing => mErr "Failed to parse JSON."
-
-
-{-
-public export
-Eq Location where
-    (Link x) == (Link y) = x == y
-    (Local x) == (Local y) = x == y
-    _ == _ = False
-
-
-public export
-Show Location where
-    show (Link s) = "Link \{s}"
-    show (Local s) = "Local \{s}"-}
