@@ -88,16 +88,19 @@ buildDepTree pkgName dir source = do
 
 
 export
-build : M ()
-build = do
+build : Maybe String -> M ()
+build subPkgName = do
+    multiConfig <- readConfig "."
+    config <- getSubConfig subPkgName multiConfig
+
     createBuildDirs
 
     ignore $ mIO $ createDir ".build/sources/main"
     ignore $ mIO $ system "cp ./sirdi.json .build/sources/main"
     ignore $ mIO $ system "cp -r ./src .build/sources/main"
 
-    fetchDeps "main" "main"
-    doBuild "main" "main"
+    fetchDeps config.pkgName "main"
+    doBuild config.pkgName "main"
 
     -- Since interactive editors are not yet compatible with sirdi, we must copy
     -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
@@ -108,24 +111,27 @@ build = do
 
 
 export
-depTree : M ()
-depTree = do
-    build
-    tree <- buildDepTree "main" "." (Local "." )
+depTree : Maybe String -> M ()
+depTree subPkgName = do
+    multiConfig <- readConfig "."
+    config <- getSubConfig subPkgName multiConfig
+
+    build subPkgName
+    tree <- buildDepTree config.pkgName "." (Local "." )
     mIO $ print tree
 
 
 export
-run : M ()
-run = do
+run : Maybe String -> M ()
+run subPkgName = do
     -- We read config files a lot. Perhaps we should add a caching system to the
     -- monad so that config files are kept in memory once they've been read once.
     multiConfig <- readConfig "."
-    config <- findSubConfig "main" multiConfig
+    config <- getSubConfig subPkgName multiConfig
 
     case config.main of
          Just _ => do
-            build
+            build subPkgName
             ignore $ mIO $ system ".build/sources/main/build/exec/main"
          Nothing => mIO $ putStrLn "Cannot run. No 'main' specified in sirdi configuration file."
 
@@ -156,7 +162,7 @@ new name = do
 export
 clean : M ()
 clean = do
-    config <- readConfig "."
+    _ <- readConfig "." -- To ensure that we are in a sirdi directory.
 
     ignore $ mIO $ system "rm -rf ./depends"
     ignore $ mIO $ system "rm -rf ./build"

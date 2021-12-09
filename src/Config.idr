@@ -51,39 +51,51 @@ MultiConfig : Type
 MultiConfig = List Config
 
 
-pConfig : String -> Maybe MultiConfig
-pConfig s = parse s >>= parseMultiConfig
-      where
-            getStr : JSON -> Maybe String
-            getStr (JString s) = Just s
-            getStr _ = Nothing
+P : Type -> Type
+P = Either String
 
-            parseName : JSON -> Maybe String
+
+lookup' : String -> List (String, JSON) -> P JSON
+lookup' x xs = case lookup x xs of
+                    Just y => pure y
+                    Nothing => Left "Expected to find key \{show x} in \{show xs}"
+
+
+pConfig : String -> P MultiConfig
+pConfig s = case parse s of
+                 Just x => parseMultiConfig x
+                 Nothing => Left "Failed to parse JSON from: \{s}"
+      where
+            getStr : JSON -> P String
+            getStr (JString s) = pure s
+            getStr x = Left "Expected a string, instead got: \{show x}"
+
+            parseName : JSON -> P String
             parseName json = do
                 s <- getStr json
                 if length s > 0 && all isAlpha (unpack s)
-                   then Just s
-                   else Nothing
+                   then pure s
+                   else Left "Invalid package name \{s}"
 
-            parseSource : (String, JSON) -> Maybe Source
+            parseSource : (String, JSON) -> P Source
             parseSource ("git", x) = Git <$> getStr x
             parseSource ("local", x) = Local <$> getStr x
-            parseSource _ = Nothing
+            parseSource x = Left "Expected { 'git': ... } or  { 'local': ... }, instead got \{show x}"
 
-            parseDep : JSON -> Maybe Dependency
+            parseDep : JSON -> P Dependency
             parseDep (JObject [("name", name), source]) = MkDep <$> getStr name <*> parseSource source
-            parseDep _ = Nothing
+            parseDep x = Left "Invalid dependency \{show x}"
 
-            parseMain : JSON -> Maybe String
+            parseMain : JSON -> P String
             parseMain = getStr
 
-            parseDeps : JSON -> Maybe (List Dependency)
+            parseDeps : JSON -> P (List Dependency)
             parseDeps (JArray deps) = sequence (map parseDep deps)
-            parseDeps _ = Nothing
+            parseDeps x = Left "Expected a list of depdencies, instead got \{show x}"
 
-            parseMods : JSON -> Maybe (List String)
+            parseMods : JSON -> P (List String)
             parseMods (JArray mods) = sequence (map getStr mods)
-            parseMods _ = Nothing
+            parseMods x = Left "Expected a list of modules, instead got \{show x}"
 
             parsePassthru : JSON -> Maybe (List (String, String))
             parsePassthru (JObject p) = traverse go p
@@ -94,11 +106,11 @@ pConfig s = parse s >>= parseMultiConfig
             parsePassthru _ = Nothing
 
 
-            parseConfig : JSON -> Maybe Config
+            parseConfig : JSON -> P Config
             parseConfig (JObject obj) = do
-                pkgName <- lookup "name" obj >>= parseName
-                deps <- lookup "deps" obj >>= parseDeps
-                mods <- lookup "modules" obj >>= parseMods
+                pkgName <- lookup' "name" obj >>= parseName
+                deps <- lookup' "deps" obj >>= parseDeps
+                mods <- lookup' "modules" obj >>= parseMods
 
                 -- This looks strange but the crucial part is that if the "main" key
                 -- is present, then we should fail if it can't parse the corresponding
@@ -109,12 +121,12 @@ pConfig s = parse s >>= parseMultiConfig
                 let pthru = catMaybes . sequence $
                     (lookup "passthru" obj >>= parsePassthru)
 
-                Just $ MkConfig pkgName deps mods main pthru
-            parseConfig _ = Nothing
+                pure $ MkConfig pkgName deps mods main pthru
+            parseConfig x = Left "Expected config object, instead got \{show x}"
 
-            parseMultiConfig : JSON -> Maybe MultiConfig
+            parseMultiConfig : JSON -> P MultiConfig
             parseMultiConfig (JArray configs) = traverse parseConfig configs
-            parseMultiConfig _ = Nothing
+            parseMultiConfig x = Left "Expected an array of configs, instead got \{show x}"
 
 export
 readConfig : (dir : String) -> M MultiConfig
@@ -124,8 +136,8 @@ readConfig dir = do
     Right contents <- mIO (readFile filepath) | Left err => mErr "Can't find file \{filepath}"
 
     case pConfig contents of
-         Just config => pure config
-         Nothing => mErr "Failed to parse JSON."
+         Right config => pure config
+         Left err => mErr "Failed to parse JSON file \{filepath}. Error:\n\{err}"
 
 
 export
@@ -134,3 +146,11 @@ findSubConfig name multi =
     case find (\cfg => cfg.pkgName == name) multi of
          Just c => pure c
          Nothing => mErr "Cannot find definition for package \{name} in config"
+
+
+export
+getSubConfig : Maybe String -> MultiConfig -> M Config
+getSubConfig (Just name) multi = findSubConfig name multi
+getSubConfig Nothing [ x ] = pure x
+getSubConfig Nothing [] = mErr "Empty configuration"
+getSubConfig Nothing _ = mErr "Need to specify which subconfig to build"

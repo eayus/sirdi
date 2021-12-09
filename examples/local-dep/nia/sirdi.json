@@ -1,5 +1,6 @@
-[{
-  "name": "main",
+[
+{
+  "name": "nia",
   "deps": [
     {
       "name": "examp",
@@ -13,4 +14,5 @@
   "passthru": {
     "prebuild": "echo Hello from\necho Nia\\'s build phase"
   }
-}]
+}
+]

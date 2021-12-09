@@ -5,6 +5,8 @@ import Build
 import Util
 
 
+--TODO: Add optional arguments to "build" "run" etc, which specify which subpkg to use.
+
 mainCommand : Command "sirdi"
 mainCommand = MkCommand
          { description = "A simple package manager for Idris2"
@@ -20,10 +22,10 @@ mainCommand = MkCommand
 main' : Main.mainCommand ~~> IO ()
 main' = [
     \_ => putStrLn "Invalid command",
-    "run" ::= [ const $ ignore $ runM run ],
-    "build" ::= [ const $ ignore $ runM build ],
+    "run" ::= [ const $ ignore $ runM $ run Nothing ],
+    "build" ::= [ const $ ignore $ runM $ build Nothing ],
     "clean" ::= [ const $ ignore $ runM clean ],
-    "dep-tree" ::= [ const $ ignore $ runM depTree ],
+    "dep-tree" ::= [ const $ ignore $ runM $ depTree Nothing ],
     "new" ::= [ \args => case args.arguments of { Just [ s ] => ignore $ runM (new s); _ => putStrLn "Bad args to new command" } ] ]
 
 main : IO ()
