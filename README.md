@@ -5,15 +5,13 @@ A simple package manager for Idris 2.
 
 ### Commands
 
-`sirdi new <project_name>` - Creates a template Idris2 project.
-
-`sirdi build` - Builds the project in the current directory.
-
-`sirdi run` - Runs the executable for the project in the current directory.
-
-`sirdi clean` - Removes all build files for the project in the current directory.
-
-`sirdi dep-tree` - Prints a dependency tree for the project in the current directory.
+| Sub Command | Effect |
+| --- | --- |
+| `new <project_name>` | Creates a template Idris2 project. |
+| `build` | Builds the project and its dependencies. |
+| `run` | Runs the executable (if a `main` has been specified in the config). |
+| `clean` | Removes all build files. |
+| `dep-tree` | Prints a dependency tree. |
 
 ### Configuration
 
