@@ -3,8 +3,6 @@ module Build
 import Config
 import System
 import System.Directory
-import Data.List
-import Data.Maybe
 import Ipkg
 import Util
 
