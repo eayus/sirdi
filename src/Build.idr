@@ -82,13 +82,6 @@ buildDepTree dir loc = do
 
 
 export
-depTree : M ()
-depTree = do
-    tree <- buildDepTree "." (Local "." )
-    mIO $ print tree
-
-
-export
 build : M ()
 build = do
     createBuildDirs
@@ -109,8 +102,18 @@ build = do
 
 
 export
+depTree : M ()
+depTree = do
+    build
+    tree <- buildDepTree "." (Local "." )
+    mIO $ print tree
+
+
+export
 run : M ()
-run = ignore $ mIO $ system ".build/sources/main/build/exec/main"
+run = do
+    build
+    ignore $ mIO $ system ".build/sources/main/build/exec/main"
 
 
 export
