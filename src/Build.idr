@@ -8,8 +8,8 @@ import Util
 
 
 fetchTo : Location -> String -> M ()
-fetchTo (Link link) dest = mIO $ ignore $ system "git clone \{link} \{dest}"
-fetchTo (Local source) dest = mIO $ ignore $ system "cp -r \{source} \{dest}"
+fetchTo (Link link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
+fetchTo (Local source) dest = mSystem "cp -r \{source} \{dest}" "Failed to copy \{source}"
 
 
 createBuildDirs : M ()
@@ -47,7 +47,7 @@ doBuild name = do
     writeIpkg ipkg "\{dir}/\{name}.ipkg"
 
     let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
-    ignore $ mIO $ system "\{setpath} idris2 --build \{dir}/\{name}.ipkg"
+    mSystem "\{setpath} idris2 --build \{dir}/\{name}.ipkg" "Failed to build \{name}"
         where
             doBuildDep : String -> M ()
             doBuildDep depName = do

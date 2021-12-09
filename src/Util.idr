@@ -1,5 +1,7 @@
 module Util
 
+import System
+
 
 export
 record M a where
@@ -44,3 +46,12 @@ runM m = do
     case res of
          Left err => putStrLn "ERROR: \{err}" >> pure Nothing
          Right x => pure (Just x)
+
+
+export
+mSystem : (command : String) -> (onErr : String) -> M ()
+mSystem command onErr = do
+    n <- mIO $ system command
+    case n of
+         0 => pure ()
+         _ => mErr onErr
