@@ -8,8 +8,8 @@ import Util
 import DepTree
 
 
-fetchTo : Location -> String -> M ()
-fetchTo (Link link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
+fetchTo : Source -> String -> M ()
+fetchTo (Git link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
 fetchTo (Local source) dest = mSystem "cp -r \{source} \{dest}" "Failed to copy \{source}"
 
 
@@ -32,7 +32,7 @@ doBuild name = do
     let dir = ".build/sources/\{name}"
     config <- readConfig dir
 
-    let depNames = map hashLoc config.deps
+    let depNames = map depID config.deps
 
     traverse_ doBuildDep depNames
 
@@ -65,20 +65,20 @@ fetchDeps name = do
     traverse_ fetchDep config.deps
 
     where
-        fetchDep : Location -> M ()
-        fetchDep loc = do
-            let depName = hashLoc loc
+        fetchDep : Dependency -> M ()
+        fetchDep dep = do
+            let depName = depID dep
             n <- mIO $ system "[ -d '.build/sources/\{depName}' ]"
-            when (n /= 0) (fetchTo loc ".build/sources/\{depName}")
+            when (n /= 0) (fetchTo dep.source ".build/sources/\{depName}")
 
             fetchDeps depName
 
 
-buildDepTree : (dir : String) -> (loc : Location) -> M DepTree
-buildDepTree dir loc = do
+buildDepTree : (dir : String) -> (source : Source) -> M DepTree
+buildDepTree dir source = do
     config <- readConfig dir
-    subtrees <- traverse (\depLoc => buildDepTree ".build/sources/\{hashLoc depLoc}" depLoc) config.deps
-    pure $ Node (MkDepInfo config.pkgName loc) subtrees
+    subtrees <- traverse (\dep => buildDepTree ".build/sources/\{depID dep}" dep.source) config.deps
+    pure $ Node (MkDep config.pkgName source) subtrees
 
 
 export

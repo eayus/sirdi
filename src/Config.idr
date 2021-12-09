@@ -7,16 +7,45 @@ import Util
 import Data.Hashable
 
 
-public export
+{-public export
 data Location
     = Link String
-    | Local String
+    | Local String-}
+
+
+public export
+URL, FilePath : Type
+URL = String
+FilePath = String
+
+
+public export
+data Source
+    = Git URL
+    | Local FilePath
+
+
+public export
+record Dependency where
+    constructor MkDep
+    name : String
+    source : Source
+
+
+hashSource : Source -> String
+hashSource (Git url) = show $ hash url
+hashSource (Local fp) = show $ hash fp
 
 
 export
+depID : Dependency -> String
+depID dep = "\{dep.name}\{hashSource dep.source}"
+
+{-
+export
 hashLoc : Location -> String
 hashLoc (Link s) = "dep\{show $ hash s}"
-hashLoc (Local s) = "dep\{show $ hash s}"
+hashLoc (Local s) = "dep\{show $ hash s}"-}
 
 
 
@@ -24,7 +53,7 @@ public export
 record Config where
     constructor MkConfig
     pkgName : String         -- Use a more precise type for this that captures valid package names
-    deps : List Location
+    deps : List Dependency
     modules : List String -- Need a better type for module names maybe?
     main : Maybe String
     passthru : List (String, String)
@@ -60,16 +89,20 @@ parseConfig s = case parse s of
                    then Just s
                    else Nothing
 
-            parseLoc : JSON -> Maybe Location
-            parseLoc (JObject [("link", x)]) = Link <$> getStr x
-            parseLoc (JObject [("local", x)]) = Local <$> getStr x
-            parseLoc _ = Nothing
+            parseSource : (String, JSON) -> Maybe Source
+            parseSource ("git", x) = Git <$> getStr x
+            parseSource ("local", x) = Local <$> getStr x
+            parseSource _ = Nothing
+
+            parseDep : JSON -> Maybe Dependency
+            parseDep (JObject [("name", name), source]) = MkDep <$> getStr name <*> parseSource source
+            parseDep _ = Nothing
 
             parseMain : JSON -> Maybe String
             parseMain = getStr
 
-            parseDeps : JSON -> Maybe (List Location)
-            parseDeps (JArray deps) = sequence (map parseLoc deps)
+            parseDeps : JSON -> Maybe (List Dependency)
+            parseDeps (JArray deps) = sequence (map parseDep deps)
             parseDeps _ = Nothing
 
             parseMods : JSON -> Maybe (List String)
@@ -96,6 +129,7 @@ readConfig dir = do
          Nothing => mErr "Failed to parse JSON."
 
 
+{-
 public export
 Eq Location where
     (Link x) == (Link y) = x == y
@@ -106,4 +140,4 @@ Eq Location where
 public export
 Show Location where
     show (Link s) = "Link \{s}"
-    show (Local s) = "Local \{s}"
+    show (Local s) = "Local \{s}"-}

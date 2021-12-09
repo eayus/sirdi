@@ -12,28 +12,24 @@ record Tree a where
 
 
 public export
-record DepInfo where
-    constructor MkDepInfo
-    pkgName : String
-    loc : Location
-    
-
-public export
 DepTree : Type
-DepTree = Tree DepInfo
+DepTree = Tree Dependency
 
 
-Show DepInfo where
-    show x = "\{x.pkgName} (\{show x.loc})"
+showDep : Dependency -> String
+showDep dep = "\{dep.name} (\{showSrc dep.source})"
+    where
+        showSrc : Source -> String
+        showSrc (Git x)   = x
+        showSrc (Local x) = x
 
 
-
-printTree : String -> DepTree -> String
-printTree indent node =
-    let subtrees = unlines $ map (printTree $ indent ++ " |  ") node.children in
-        "\{indent} +- \{show node.val}\n\{subtrees}"
+showTree : String -> DepTree -> String
+showTree indent node =
+    let subtrees = unlines $ map (showTree $ indent ++ " |  ") node.children in
+        "\{indent} +- \{showDep node.val}\n\{subtrees}"
 
 
 public export
 Show DepTree where
-    show = printTree ""
+  show = showTree ""

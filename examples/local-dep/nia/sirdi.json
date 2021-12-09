@@ -2,6 +2,7 @@
   "name": "nia",
   "deps": [
     {
+      "name": "examp",
       "local": "../examp"
     }
   ],
