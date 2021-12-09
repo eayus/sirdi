@@ -112,8 +112,15 @@ depTree = do
 export
 run : M ()
 run = do
-    build
-    ignore $ mIO $ system ".build/sources/main/build/exec/main"
+    -- We read config files a lot. Perhaps we should add a caching system to the
+    -- monad so that config files are kept in memory once they've been read once.
+    config <- readConfig "."
+
+    case config.main of
+         Just _ => do
+            build
+            ignore $ mIO $ system ".build/sources/main/build/exec/main"
+         Nothing => mIO $ putStrLn "Cannot run. No 'main' specified in sirdi configuration file."
 
 
 export
@@ -144,9 +151,9 @@ clean : M ()
 clean = do
     config <- readConfig "."
 
-    ignore $ mIO $ system "rm -r ./depends"
-    ignore $ mIO $ system "rm -r ./build"
-    ignore $ mIO $ system "rm -r ./main.ipkg"
+    ignore $ mIO $ system "rm -rf ./depends"
+    ignore $ mIO $ system "rm -rf ./build"
+    ignore $ mIO $ system "rm -rf ./main.ipkg"
     ignore $ mIO $ system "rm -rf ./.build"
 
     mIO $ putStrLn "Cleaned up"
