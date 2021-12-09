@@ -4,6 +4,7 @@ import System.File.ReadWrite
 import Language.JSON
 import Data.List
 import Util
+import Data.Hashable
 
 
 public export
@@ -12,12 +13,10 @@ data Location
     | Local String
 
 
--- Ideally we do a proper hashing algorithm. This is obviously flawed.
--- Also fails if a location only contains non-alpha chars
 export
 hashLoc : Location -> String
-hashLoc (Link s) = pack $ filter isAlpha $ unpack s
-hashLoc (Local s) = pack $ filter isAlpha $ unpack s
+hashLoc (Link s) = "dep\{show $ hash s}"
+hashLoc (Local s) = "dep\{show $ hash s}"
 
 
 
