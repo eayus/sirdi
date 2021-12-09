@@ -26,19 +26,20 @@ installDep name = do
     ignore $ mIO $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
 
 
-doBuild : String -> M ()
-doBuild name = do
+doBuild : String -> String -> M ()
+doBuild pkgName name = do
     mIO $ putStrLn "Building \{name}"
     let dir = ".build/sources/\{name}"
-    config <- readConfig dir
+    multiConfig <- readConfig dir
+    config <- findSubConfig pkgName multiConfig
 
-    let depNames = map depID config.deps
+    let depNames = map (\d => (d.name, depID d)) config.deps
 
     traverse_ doBuildDep depNames
 
     let ipkg = MkIpkg {
         name = name,
-        depends = depNames,
+        depends = map snd depNames,
         modules = config.modules,
         main = config.main,
         exec = "main" <$ config.main,
@@ -50,17 +51,20 @@ doBuild name = do
     let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
     mSystem "\{setpath} idris2 --build \{dir}/\{name}.ipkg" "Failed to build \{name}"
         where
-            doBuildDep : String -> M ()
-            doBuildDep depName = do
+            doBuildDep : (String, String) -> M ()
+            doBuildDep (pkgName, depName) = do
                 n <- mIO $ system "[ -d '.build/deps/\{depName}' ]"
 
-                when (n /= 0) (doBuild depName >> installDep depName)
+                when (n /= 0) (doBuild pkgName depName >> installDep depName)
                 
 
 
-fetchDeps : String -> M ()
-fetchDeps name = do
-    config <- readConfig ".build/sources/\{name}"
+fetchDeps : String -> String -> M ()
+fetchDeps pkgName name = do
+    multiConfig <- readConfig ".build/sources/\{name}"
+
+    config <- findSubConfig pkgName multiConfig
+
 
     traverse_ fetchDep config.deps
 
@@ -71,13 +75,15 @@ fetchDeps name = do
             n <- mIO $ system "[ -d '.build/sources/\{depName}' ]"
             when (n /= 0) (fetchTo dep.source ".build/sources/\{depName}")
 
-            fetchDeps depName
+            fetchDeps dep.name depName
 
 
-buildDepTree : (dir : String) -> (source : Source) -> M DepTree
-buildDepTree dir source = do
-    config <- readConfig dir
-    subtrees <- traverse (\dep => buildDepTree ".build/sources/\{depID dep}" dep.source) config.deps
+buildDepTree : String -> (dir : String) -> (source : Source) -> M DepTree
+buildDepTree pkgName dir source = do
+    multiConfig <- readConfig dir
+    config <- findSubConfig pkgName multiConfig
+
+    subtrees <- traverse (\dep => buildDepTree dep.name ".build/sources/\{depID dep}" dep.source) config.deps
     pure $ Node (MkDep config.pkgName source) subtrees
 
 
@@ -90,8 +96,8 @@ build = do
     ignore $ mIO $ system "cp ./sirdi.json .build/sources/main"
     ignore $ mIO $ system "cp -r ./src .build/sources/main"
 
-    fetchDeps "main"
-    doBuild "main"
+    fetchDeps "main" "main"
+    doBuild "main" "main"
 
     -- Since interactive editors are not yet compatible with sirdi, we must copy
     -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
@@ -105,7 +111,7 @@ export
 depTree : M ()
 depTree = do
     build
-    tree <- buildDepTree "." (Local "." )
+    tree <- buildDepTree "main" "." (Local "." )
     mIO $ print tree
 
 
@@ -114,7 +120,8 @@ run : M ()
 run = do
     -- We read config files a lot. Perhaps we should add a caching system to the
     -- monad so that config files are kept in memory once they've been read once.
-    config <- readConfig "."
+    multiConfig <- readConfig "."
+    config <- findSubConfig "main" multiConfig
 
     case config.main of
          Just _ => do

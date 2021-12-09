@@ -46,24 +46,13 @@ record Config where
     passthru : List (String, String)
 
 
-parseConfig : String -> Maybe Config
-parseConfig s = case parse s of
-                     Just (JObject obj) => do
-                        pkgName <- lookup "name" obj >>= parseName
-                        deps <- lookup "deps" obj >>= parseDeps
-                        mods <- lookup "modules" obj >>= parseMods
+public export
+MultiConfig : Type
+MultiConfig = List Config
 
-                        -- This looks strange but the crucial part is that if the "main" key
-                        -- is present, then we should fail if it can't parse the corresponding
-                        -- JSON. Equally, if the key isn't present, then that should be fine too.
-                        let main = parseMain <$> lookup "main" obj
-                        main <- sequence main
 
-                        let pthru = catMaybes . sequence $
-                            (lookup "passthru" obj >>= parsePassthru)
-
-                        Just $ MkConfig pkgName deps mods main pthru
-                     _ => Nothing
+pConfig : String -> Maybe MultiConfig
+pConfig s = parse s >>= parseMultiConfig
       where
             getStr : JSON -> Maybe String
             getStr (JString s) = Just s
@@ -104,13 +93,44 @@ parseConfig s = case parse s of
                   go _ = Nothing
             parsePassthru _ = Nothing
 
+
+            parseConfig : JSON -> Maybe Config
+            parseConfig (JObject obj) = do
+                pkgName <- lookup "name" obj >>= parseName
+                deps <- lookup "deps" obj >>= parseDeps
+                mods <- lookup "modules" obj >>= parseMods
+
+                -- This looks strange but the crucial part is that if the "main" key
+                -- is present, then we should fail if it can't parse the corresponding
+                -- JSON. Equally, if the key isn't present, then that should be fine too.
+                let main = parseMain <$> lookup "main" obj
+                main <- sequence main
+
+                let pthru = catMaybes . sequence $
+                    (lookup "passthru" obj >>= parsePassthru)
+
+                Just $ MkConfig pkgName deps mods main pthru
+            parseConfig _ = Nothing
+
+            parseMultiConfig : JSON -> Maybe MultiConfig
+            parseMultiConfig (JArray configs) = traverse parseConfig configs
+            parseMultiConfig _ = Nothing
+
 export
-readConfig : (dir : String) -> M Config
+readConfig : (dir : String) -> M MultiConfig
 readConfig dir = do
     let filepath = "\{dir}/sirdi.json"
 
     Right contents <- mIO (readFile filepath) | Left err => mErr "Can't find file \{filepath}"
 
-    case parseConfig contents of
+    case pConfig contents of
          Just config => pure config
          Nothing => mErr "Failed to parse JSON."
+
+
+export
+findSubConfig : String -> MultiConfig -> M Config
+findSubConfig name multi =
+    case find (\cfg => cfg.pkgName == name) multi of
+         Just c => pure c
+         Nothing => mErr "Cannot find definition for package \{name} in config"
