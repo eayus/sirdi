@@ -126,3 +126,15 @@ new name = do
             { "deps": [ ], "modules": [ "Main" ], "main": "Main" }
 
             """
+
+export
+clean : M ()
+clean = do
+    config <- readConfig "."
+
+    ignore $ mIO $ system "rm -r ./depends"
+    ignore $ mIO $ system "rm -r ./build"
+    ignore $ mIO $ system "rm -r ./main.ipkg"
+    ignore $ mIO $ system "rm -rf ./.build"
+
+    mIO $ putStrLn "Cleaned up"
