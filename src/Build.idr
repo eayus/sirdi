@@ -10,7 +10,10 @@ import DepTree
 
 fetchTo : Source -> String -> M ()
 fetchTo (Git link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
-fetchTo (Local source) dest = mSystem "cp -r \{source} \{dest}" "Failed to copy \{source}"
+fetchTo (Local source) dest = do
+    ignore $ mIO $ createDir "\{dest}"
+    mSystem "cp \{source}/sirdi.json \{dest}/sirdi.json" "Failed to copy \{source}/sirdi.json"
+    mSystem "cp -r \{source}/src \{dest}/src" "Failed to copy \{source}/src"
 
 
 createBuildDirs : M ()
