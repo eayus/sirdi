@@ -91,6 +91,13 @@ build = do
     fetchDeps "main"
     doBuild "main"
 
+    -- Since interactive editors are not yet compatible with sirdi, we must copy
+    -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
+    -- can hopefully be removed eventually.
+    ignore $ mIO $ system "cp -r .build/sources/main/build ./"
+    ignore $ mIO $ system "cp -r .build/sources/main/main.ipkg ./"
+    ignore $ mIO $ system "cp -r .build/deps ./depends"
+
 
 export
 run : M ()
