@@ -23,6 +23,7 @@ hashLoc (Local s) = "dep\{show $ hash s}"
 public export
 record Config where
     constructor MkConfig
+    pkgName : String         -- Use a more precise type for this that captures valid package names
     deps : List Location
     modules : List String -- Need a better type for module names maybe?
     main : Maybe String
@@ -32,6 +33,7 @@ record Config where
 parseConfig : String -> Maybe Config
 parseConfig s = case parse s of
                      Just (JObject obj) => do
+                        pkgName <- lookup "name" obj >>= parseName
                         deps <- lookup "deps" obj >>= parseDeps
                         mods <- lookup "modules" obj >>= parseMods
 
@@ -44,12 +46,19 @@ parseConfig s = case parse s of
                         let pthru = catMaybes . sequence $
                             (lookup "passthru" obj >>= parsePassthru)
 
-                        Just $ MkConfig deps mods main pthru
+                        Just $ MkConfig pkgName deps mods main pthru
                      _ => Nothing
       where
             getStr : JSON -> Maybe String
             getStr (JString s) = Just s
             getStr _ = Nothing
+
+            parseName : JSON -> Maybe String
+            parseName json = do
+                s <- getStr json
+                if length s > 0 && all isAlpha (unpack s)
+                   then Just s
+                   else Nothing
 
             parseLoc : JSON -> Maybe Location
             parseLoc (JObject [("link", x)]) = Link <$> getStr x

@@ -1,1 +1,1 @@
-{ "deps": [], "modules": [ "Examp" ] }
+{ "name": "examp", "deps": [], "modules": [ "Examp" ] }
