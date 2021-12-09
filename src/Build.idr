@@ -5,6 +5,7 @@ import System
 import System.Directory
 import Ipkg
 import Util
+import DepTree
 
 
 fetchTo : Location -> String -> M ()
@@ -57,10 +58,6 @@ doBuild name = do
                 
 
 
--- Eventually this should return a depdency tree!
--- Then we can feed that tree into doBuild, so that it doesn't have to
--- re-read config files. In addition, we can define a new command to
--- print the dep tree.
 fetchDeps : String -> M ()
 fetchDeps name = do
     config <- readConfig ".build/sources/\{name}"
@@ -75,6 +72,20 @@ fetchDeps name = do
             when (n /= 0) (fetchTo loc ".build/sources/\{depName}")
 
             fetchDeps depName
+
+
+buildDepTree : (dir : String) -> (loc : Location) -> M DepTree
+buildDepTree dir loc = do
+    config <- readConfig dir
+    subtrees <- traverse (\depLoc => buildDepTree ".build/sources/\{hashLoc depLoc}" depLoc) config.deps
+    pure $ Node (MkDepInfo config.pkgName loc) subtrees
+
+
+export
+depTree : M ()
+depTree = do
+    tree <- buildDepTree "." (Local "." )
+    mIO $ print tree
 
 
 export
