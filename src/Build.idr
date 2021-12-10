@@ -34,6 +34,20 @@ installDep name = do
     ignore $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
 
 
+makeDepTree : Package -> M DepTree
+makeDepTree dep = case isLegacy dep of
+    True => pure $ Node dep []
+    False => do
+        let dir = ".build/sources/\{pkgID dep}"
+
+        multiConfig <- readConfig dir
+
+        config <- findSubConfig dep.name multiConfig
+        children <- traverse makeDepTree config.deps
+
+        pure $ Node dep children
+
+
 buildPackage : Package -> M ()
 buildPackage dep = unless (isLegacy dep) $ do
     putStrLn "Building \{dep.name}"
@@ -43,14 +57,19 @@ buildPackage dep = unless (isLegacy dep) $ do
     multiConfig <- readConfig dir
     config <- findSubConfig dep.name multiConfig
 
-    traverse_ buildPackage config.deps
+    -- Get a DepTree for each dependency
+    deps <- traverse makeDepTree config.deps
+    -- get list of unique dependencies
+    let deps = nubOn pkgID . toList =<< deps
+
+    traverse_ buildPackage deps
 
     n <- system "[ -d '.build/deps/\{pkgID dep}' ]"
     when (n /= 0) (do
 
         let ipkg = MkIpkg {
             name = dep.name,
-            depends = map pkgID config.deps,
+            depends = map pkgID deps,
             modules = config.modules,
             main = config.main,
             exec = "main" <$ config.main,
@@ -81,20 +100,6 @@ fetchPackage dep = unless (isLegacy dep) $ do
 
     -- Recursively fetch the dependencies of this dependency.
     traverse_ fetchPackage config.deps
-
-
-makeDepTree : Package -> M DepTree
-makeDepTree dep = case isLegacy dep of
-    True => pure $ Node dep []
-    False => do
-        let dir = ".build/sources/\{pkgID dep}"
-
-        multiConfig <- readConfig dir
-        config <- findSubConfig dep.name multiConfig
-
-        children <- traverse makeDepTree config.deps
-
-        pure $ Node dep children
 
 
 export

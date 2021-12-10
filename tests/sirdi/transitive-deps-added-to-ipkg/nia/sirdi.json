@@ -1,0 +1,5 @@
+[ { "name": "nia",
+  "deps": [ { "name": "examp", "local": "../examp" } ],
+  "modules": [ "Nia" ],
+  "main": "Nia" }
+]

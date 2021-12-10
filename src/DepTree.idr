@@ -17,6 +17,11 @@ treeToList node = node.val :: concatMap treeToList node.children
 
 
 public export
+toList : Tree a -> List a
+toList (Node val children) = val :: (children >>= toList)
+
+
+public export
 DepTree : Type
 DepTree = Tree Package
 
