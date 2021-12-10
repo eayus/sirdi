@@ -3,6 +3,7 @@ module Build
 import Config
 import System
 import System.Directory
+import System.File
 import Ipkg
 import Util
 import DepTree
@@ -64,8 +65,7 @@ buildPackage dep = unless (isLegacy dep) $ do
 
     traverse_ buildPackage deps
 
-    n <- system "[ -d '.build/deps/\{pkgID dep}' ]"
-    when (n /= 0) (do
+    unless !(exists ".build/deps/\{pkgID dep}") (do
 
         let ipkg = MkIpkg {
             name = dep.name,
@@ -91,8 +91,7 @@ fetchPackage dep = unless (isLegacy dep) $ do
     let dir = ".build/sources/\{pkgID dep}"
 
     -- If we haven't already fetched it, fetch it.
-    n <- system "[ -d '\{dir}' ]"
-    when (n /= 0) (fetchTo dep.source dir)
+    unless !(exists dir) $ fetchTo dep.source dir
 
     -- Read the dependencies config.
     multiConfig <- readConfig dir
