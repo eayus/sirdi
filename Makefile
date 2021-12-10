@@ -8,3 +8,7 @@ testbin:
 
 test:
 	make -C tests test
+
+clean:
+	rm -rf build/
+	make -C tests clean
