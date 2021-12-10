@@ -65,7 +65,6 @@ buildPackage dep = unless (isLegacy dep) $ do
         )
 
 
--- TODO: perhaps rename "Package" to "Package"
 fetchPackage : Package -> M ()
 fetchPackage dep = unless (isLegacy dep) $ do
     -- Calculate where the dependency should be fetched to.
@@ -107,6 +106,11 @@ build subPkgName = do
 
     let mainDep = MkPkg config.pkgName (Local ".")
     let mainID = pkgID mainDep
+
+    -- A bit of hack. Remove the existing main pkg files so we force it to rebuild
+    ignore $ system "rm -rf .build/sources/\{mainID}"
+    ignore $ system "rm -rf .build/deps/\{mainID}"
+
 
     fetchPackage mainDep
     buildPackage mainDep
