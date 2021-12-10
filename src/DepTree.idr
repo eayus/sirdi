@@ -13,10 +13,10 @@ record Tree a where
 
 public export
 DepTree : Type
-DepTree = Tree Dependency
+DepTree = Tree Package
 
 
-showDep : Dependency -> String
+showDep : Package -> String
 showDep dep = "\{dep.name} (\{showSrc dep.source})"
     where
         showSrc : Source -> String

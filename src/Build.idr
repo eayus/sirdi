@@ -33,23 +33,23 @@ installDep name = do
     ignore $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
 
 
-buildDependency : Dependency -> M ()
-buildDependency dep = unless (isLegacy dep) $ do
+buildPackage : Package -> M ()
+buildPackage dep = unless (isLegacy dep) $ do
     putStrLn "Building \{dep.name}"
 
-    let dir = ".build/sources/\{depID dep}"
+    let dir = ".build/sources/\{pkgID dep}"
 
     multiConfig <- readConfig dir
     config <- findSubConfig dep.name multiConfig
 
-    traverse_ buildDependency config.deps
+    traverse_ buildPackage config.deps
 
-    n <- system "[ -d '.build/deps/\{depID dep}' ]"
+    n <- system "[ -d '.build/deps/\{pkgID dep}' ]"
     when (n /= 0) (do
 
         let ipkg = MkIpkg {
             name = dep.name,
-            depends = map depID config.deps,
+            depends = map pkgID config.deps,
             modules = config.modules,
             main = config.main,
             exec = "main" <$ config.main,
@@ -61,15 +61,15 @@ buildDependency dep = unless (isLegacy dep) $ do
         let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
         mSystem "\{setpath} idris2 --build \{dir}/\{dep.name}.ipkg" "Failed to build \{dep.name}"
 
-        installDep (depID dep)
+        installDep (pkgID dep)
         )
 
 
--- TODO: perhaps rename "Dependency" to "Package"
-fetchDependency : Dependency -> M ()
-fetchDependency dep = unless (isLegacy dep) $ do
+-- TODO: perhaps rename "Package" to "Package"
+fetchPackage : Package -> M ()
+fetchPackage dep = unless (isLegacy dep) $ do
     -- Calculate where the dependency should be fetched to.
-    let dir = ".build/sources/\{depID dep}"
+    let dir = ".build/sources/\{pkgID dep}"
 
     -- If we haven't already fetched it, fetch it.
     n <- system "[ -d '\{dir}' ]"
@@ -80,14 +80,14 @@ fetchDependency dep = unless (isLegacy dep) $ do
     config <- findSubConfig dep.name multiConfig
 
     -- Recursively fetch the dependencies of this dependency.
-    traverse_ fetchDependency config.deps
+    traverse_ fetchPackage config.deps
 
 
-makeDepTree : Dependency -> M DepTree
+makeDepTree : Package -> M DepTree
 makeDepTree dep = case isLegacy dep of
     True => pure $ Node dep []
     False => do
-        let dir = ".build/sources/\{depID dep}"
+        let dir = ".build/sources/\{pkgID dep}"
 
         multiConfig <- readConfig dir
         config <- findSubConfig dep.name multiConfig
@@ -105,11 +105,11 @@ build subPkgName = do
 
     createBuildDirs
 
-    let mainDep = MkDep config.pkgName (Local ".")
-    let mainID = depID mainDep
+    let mainDep = MkPkg config.pkgName (Local ".")
+    let mainID = pkgID mainDep
 
-    fetchDependency mainDep
-    buildDependency mainDep
+    fetchPackage mainDep
+    buildPackage mainDep
 
     -- Since interactive editors are not yet compatible with sirdi, we must copy
     -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
@@ -125,7 +125,7 @@ depTree subPkgName = do
     multiConfig <- readConfig "."
     config <- getSubConfig subPkgName multiConfig
 
-    let mainDep = MkDep config.pkgName (Local ".")
+    let mainDep = MkPkg config.pkgName (Local ".")
 
     build subPkgName
     tree <- makeDepTree mainDep
@@ -140,12 +140,12 @@ run subPkgName = do
     multiConfig <- readConfig "."
     config <- getSubConfig subPkgName multiConfig
 
-    let mainDep = MkDep config.pkgName (Local ".")
+    let mainDep = MkPkg config.pkgName (Local ".")
 
     case config.main of
          Just _ => do
             build subPkgName
-            ignore $ system ".build/sources/\{depID mainDep}/build/exec/main"
+            ignore $ system ".build/sources/\{pkgID mainDep}/build/exec/main"
          Nothing => putStrLn "Cannot run. No 'main' specified in sirdi configuration file."
 
 
