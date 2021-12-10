@@ -18,5 +18,5 @@ jobs:
       with:
         name: cm-idris2-pkgs
         skipPush: true
-    - run: nix profile install github:claymager/idris2-pkgs#idris2.withLibs.collie.hashable
+    - run: nix profile install github:claymager/idris2-pkgs#idris2.withLibs.hashable
     - run: make build testbin test INTERACTIVE=""
