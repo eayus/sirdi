@@ -8,6 +8,9 @@ import Util
 import DepTree
 
 
+-- TODO: Rearrange the functions in this file so they are at least grouped sensibly.
+
+
 fetchTo : Source -> String -> M ()
 fetchTo (Git link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
 fetchTo (Local source) dest = do
@@ -79,13 +82,16 @@ fetchDependency dep = do
     traverse_ fetchDependency config.deps
 
 
-buildDepTree : String -> (dir : String) -> (source : Source) -> M DepTree
-buildDepTree pkgName dir source = do
-    multiConfig <- readConfig dir
-    config <- findSubConfig pkgName multiConfig
+makeDepTree : Dependency -> M DepTree
+makeDepTree dep = do
+    let dir = ".build/sources/\{depID dep}"
 
-    subtrees <- traverse (\dep => buildDepTree dep.name ".build/sources/\{depID dep}" dep.source) config.deps
-    pure $ Node (MkDep config.pkgName source) subtrees
+    multiConfig <- readConfig dir
+    config <- findSubConfig dep.name multiConfig
+
+    children <- traverse makeDepTree config.deps
+
+    pure $ Node dep children
 
 
 export
@@ -96,13 +102,6 @@ build subPkgName = do
 
     createBuildDirs
 
-    --ignore $ mIO $ createDir ".build/sources/main"
-    --ignore $ mIO $ system "cp ./sirdi.json .build/sources/main"
-    --ignore $ mIO $ system "cp -r ./src .build/sources/main"
-
-    --fetchDeps config.pkgName "main"
-    ---doBuild config.pkgName "main"
-
     let mainDep = MkDep config.pkgName (Local ".")
     let mainID = depID mainDep
 
@@ -112,11 +111,6 @@ build subPkgName = do
     -- Since interactive editors are not yet compatible with sirdi, we must copy
     -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
     -- can hopefully be removed eventually.
-    {-
-    ignore $ mIO $ system "cp -r .build/sources/main/build ./"
-    ignore $ mIO $ system "cp -r .build/sources/main/main.ipkg ./"
-    ignore $ mIO $ system "cp -r .build/deps ./depends"-}
-
     ignore $ mIO $ system "cp -r .build/sources/\{mainID}/build ./"
     ignore $ mIO $ system "cp -r .build/sources/\{mainID}/\{mainDep.name}.ipkg ./"
     ignore $ mIO $ system "cp -r .build/deps ./depends"
@@ -128,8 +122,10 @@ depTree subPkgName = do
     multiConfig <- readConfig "."
     config <- getSubConfig subPkgName multiConfig
 
+    let mainDep = MkDep config.pkgName (Local ".")
+
     build subPkgName
-    tree <- buildDepTree config.pkgName "." (Local "." )
+    tree <- makeDepTree mainDep
     mIO $ print tree
 
 
