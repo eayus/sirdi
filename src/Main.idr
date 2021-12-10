@@ -19,6 +19,8 @@ processArgs ["dep-tree", subPkgName] = depTree (Just subPkgName)
 
 processArgs ["new", fp] = new fp
 
+processArgs ["prune"] = prune
+
 processArgs _ = putStrLn "Invalid arguments"
 
 

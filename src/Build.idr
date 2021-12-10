@@ -6,6 +6,7 @@ import System.Directory
 import Ipkg
 import Util
 import DepTree
+import Data.List
 
 
 -- TODO: Rearrange the functions in this file so they are at least grouped sensibly.
@@ -187,3 +188,28 @@ clean = do
     ignore $ system "rm -rf ./.build"
 
     putStrLn "Cleaned up"
+
+
+export
+prune : M ()
+prune = do
+    multiConfig <- readConfig "."
+    let pkgs = map (\cfg => MkPkg cfg.pkgName (Local ".")) multiConfig
+
+    trees <- traverse makeDepTree pkgs
+    let deps = concatMap treeToList trees
+
+    let validDirs = map pkgID deps
+
+    res <- listDir ".build/sources"
+
+    case res of
+         Left err => print err
+         Right dirs => do
+            let badDirs = filter (\x => not $ x `elem` validDirs) dirs
+
+            let srcDirs = map (\x => ".build/sources/\{x}") badDirs
+            let depDirs = map (\x => ".build/deps/\{x}") badDirs
+
+            traverse_ (\s => system "rm -rf \{s}") srcDirs
+            traverse_ (\s => system "rm -rf \{s}") depDirs

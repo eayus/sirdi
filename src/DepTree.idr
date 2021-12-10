@@ -11,6 +11,11 @@ record Tree a where
     children : List (Tree a)
 
 
+export
+treeToList : Tree a -> List a
+treeToList node = node.val :: concatMap treeToList node.children
+
+
 public export
 DepTree : Type
 DepTree = Tree Package
@@ -34,3 +39,5 @@ showTree indent node =
 public export covering
 Show DepTree where
   show = showTree ""
+
+
