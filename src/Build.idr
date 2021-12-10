@@ -14,27 +14,27 @@ import DepTree
 fetchTo : Source -> String -> M ()
 fetchTo (Git link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
 fetchTo (Local source) dest = do
-    ignore $ mIO $ createDir "\{dest}"
+    ignore $ createDir "\{dest}"
     mSystem "cp \{source}/sirdi.json \{dest}/sirdi.json" "Failed to copy \{source}/sirdi.json"
     mSystem "cp -r \{source}/src \{dest}/src" "Failed to copy \{source}/src"
 
 
 createBuildDirs : M ()
 createBuildDirs = do
-    ignore $ mIO $ createDir ".build"
-    ignore $ mIO $ createDir ".build/sources"  -- Store the raw git clones
-    ignore $ mIO $ createDir ".build/deps"     -- Contains the built dependencies
+    ignore $ createDir ".build"
+    ignore $ createDir ".build/sources"  -- Store the raw git clones
+    ignore $ createDir ".build/deps"     -- Contains the built dependencies
 
 
 installDep : String -> M ()
 installDep name = do
-    ignore $ mIO $ createDir ".build/deps/\{name}"
-    ignore $ mIO $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
+    ignore $ createDir ".build/deps/\{name}"
+    ignore $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
 
 
 buildDependency : Dependency -> M ()
 buildDependency dep = do
-    mIO $ putStrLn "Building \{dep.name}"
+    putStrLn "Building \{dep.name}"
 
     let dir = ".build/sources/\{depID dep}"
 
@@ -43,7 +43,7 @@ buildDependency dep = do
 
     traverse_ buildDependency config.deps
 
-    n <- mIO $ system "[ -d '.build/deps/\{depID dep}' ]"
+    n <- system "[ -d '.build/deps/\{depID dep}' ]"
     when (n /= 0) (do
 
         let ipkg = MkIpkg {
@@ -71,7 +71,7 @@ fetchDependency dep = do
     let dir = ".build/sources/\{depID dep}"
 
     -- If we haven't already fetched it, fetch it.
-    n <- mIO $ system "[ -d '\{dir}' ]"
+    n <- system "[ -d '\{dir}' ]"
     when (n /= 0) (fetchTo dep.source dir)
 
     -- Read the dependencies config.
@@ -111,9 +111,9 @@ build subPkgName = do
     -- Since interactive editors are not yet compatible with sirdi, we must copy
     -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
     -- can hopefully be removed eventually.
-    ignore $ mIO $ system "cp -r .build/sources/\{mainID}/build ./"
-    ignore $ mIO $ system "cp -r .build/sources/\{mainID}/\{mainDep.name}.ipkg ./"
-    ignore $ mIO $ system "cp -r .build/deps ./depends"
+    ignore $ system "cp -r .build/sources/\{mainID}/build ./"
+    ignore $ system "cp -r .build/sources/\{mainID}/\{mainDep.name}.ipkg ./"
+    ignore $ system "cp -r .build/deps ./depends"
 
 
 export
@@ -126,7 +126,7 @@ depTree subPkgName = do
 
     build subPkgName
     tree <- makeDepTree mainDep
-    mIO $ print tree
+    print tree
 
 
 export
@@ -142,18 +142,18 @@ run subPkgName = do
     case config.main of
          Just _ => do
             build subPkgName
-            ignore $ mIO $ system ".build/sources/\{depID mainDep}/build/exec/main"
-         Nothing => mIO $ putStrLn "Cannot run. No 'main' specified in sirdi configuration file."
+            ignore $ system ".build/sources/\{depID mainDep}/build/exec/main"
+         Nothing => putStrLn "Cannot run. No 'main' specified in sirdi configuration file."
 
 
 export
 new : String -> M ()
 new name = do
-    ignore $ mIO $ createDir "\{name}"
-    ignore $ mIO $ createDir "\{name}/src"
+    ignore $ createDir "\{name}"
+    ignore $ createDir "\{name}/src"
 
-    ignore $ mIO $ writeFile "\{name}/sirdi.json" jsonFile
-    ignore $ mIO $ writeFile "\{name}/src/Main.idr" idrFile
+    ignore $ writeFile "\{name}/sirdi.json" jsonFile
+    ignore $ writeFile "\{name}/src/Main.idr" idrFile
         where
             idrFile : String
             idrFile = """
@@ -174,9 +174,9 @@ clean : M ()
 clean = do
     _ <- readConfig "." -- To ensure that we are in a sirdi directory.
 
-    ignore $ mIO $ system "rm -rf ./depends"
-    ignore $ mIO $ system "rm -rf ./build"
-    ignore $ mIO $ system "rm -rf ./*.ipkg"
-    ignore $ mIO $ system "rm -rf ./.build"
+    ignore $ system "rm -rf ./depends"
+    ignore $ system "rm -rf ./build"
+    ignore $ system "rm -rf ./*.ipkg"
+    ignore $ system "rm -rf ./.build"
 
-    mIO $ putStrLn "Cleaned up"
+    putStrLn "Cleaned up"

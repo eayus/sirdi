@@ -133,7 +133,7 @@ readConfig : (dir : String) -> M MultiConfig
 readConfig dir = do
     let filepath = "\{dir}/sirdi.json"
 
-    Right contents <- mIO (readFile filepath) | Left err => mErr "Can't find file \{filepath}"
+    Right contents <- readFile filepath | Left err => mErr "Can't find file \{filepath}"
 
     case pConfig contents of
          Right config => pure config
