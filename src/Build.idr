@@ -84,15 +84,17 @@ fetchDependency dep = unless (isLegacy dep) $ do
 
 
 makeDepTree : Dependency -> M DepTree
-makeDepTree dep = do
-    let dir = ".build/sources/\{depID dep}"
+makeDepTree dep = case isLegacy dep of
+    True => pure $ Node dep []
+    False => do
+        let dir = ".build/sources/\{depID dep}"
 
-    multiConfig <- readConfig dir
-    config <- findSubConfig dep.name multiConfig
+        multiConfig <- readConfig dir
+        config <- findSubConfig dep.name multiConfig
 
-    children <- traverse makeDepTree config.deps
+        children <- traverse makeDepTree config.deps
 
-    pure $ Node dep children
+        pure $ Node dep children
 
 
 export
