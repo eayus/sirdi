@@ -172,7 +172,7 @@ new name = do
 
             jsonFile : String
             jsonFile = """
-            { "deps": [ ], "modules": [ "Main" ], "main": "Main" }
+            [{ "deps": [ ], "modules": [ "Main" ], "main": "Main", "name": "mypkg" }]
 
             """
 
