@@ -100,7 +100,7 @@ pConfig s = case parse s of
 
             parseDeps : JSON -> P (List Dependency)
             parseDeps (JArray deps) = sequence (map parseDep deps)
-            parseDeps x = Left "Expected a list of depdencies, instead got \{show x}"
+            parseDeps x = Left "Expected a list of dependencies, instead got \{show x}"
 
             parseMods : JSON -> P (List String)
             parseMods (JArray mods) = sequence (map getStr mods)
