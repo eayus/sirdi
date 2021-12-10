@@ -108,6 +108,11 @@ build subPkgName = do
     let mainDep = MkPkg config.pkgName (Local ".")
     let mainID = pkgID mainDep
 
+    -- A bit of hack. Remove the existing main pkg files so we force it to rebuild
+    ignore $ system "rm -rf .build/sources/\{mainID}"
+    ignore $ system "rm -rf .build/deps/\{mainID}"
+
+
     fetchPackage mainDep
     buildPackage mainDep
 
