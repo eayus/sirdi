@@ -22,14 +22,15 @@ showDep dep = "\{dep.name} (\{showSrc dep.source})"
         showSrc : Source -> String
         showSrc (Git x)   = x
         showSrc (Local x) = x
+        showSrc Legacy = "legacy"
 
 
 showTree : String -> DepTree -> String
 showTree indent node =
-    let subtrees = unlines $ map (showTree $ indent ++ " |  ") node.children in
+    let subtrees = fastConcat $ map (showTree $ indent ++ " |  ") node.children in
         "\{indent} +- \{showDep node.val}\n\{subtrees}"
 
 
-public export
+public export covering
 Show DepTree where
   show = showTree ""

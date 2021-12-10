@@ -36,5 +36,5 @@ modules = \{concat $ intersperse ", " p.modules}
 public export
 writeIpkg : Ipkg -> String -> M ()
 writeIpkg ipkg dest = do
-    Right () <- mIO $ writeFile dest (show ipkg) | Left err => mErr $ show err
+    Right () <- writeFile dest (show ipkg) | Left err => mErr $ show err
     pure ()

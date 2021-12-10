@@ -31,8 +31,8 @@ Monad M where
 
 
 export
-mIO : IO a -> M a
-mIO = MkM . map Right
+HasIO M where
+    liftIO = MkM . map Right
 
 export
 mErr : String -> M a
@@ -51,7 +51,7 @@ runM m = do
 export
 mSystem : (command : String) -> (onErr : String) -> M ()
 mSystem command onErr = do
-    n <- mIO $ system command
+    n <- system command
     case n of
          0 => pure ()
          _ => mErr onErr

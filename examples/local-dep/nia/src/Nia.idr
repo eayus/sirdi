@@ -1,6 +1,7 @@
 module Nia
 
 import Examp
+import Language.JSON
 
 main : IO ()
 main = do

@@ -5,6 +5,10 @@
     {
       "name": "examp",
       "local": "../examp"
+    },
+    {
+      "name": "contrib",
+      "legacy": true
     }
   ],
   "modules": [
