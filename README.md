@@ -12,6 +12,7 @@ A simple package manager for Idris 2.
 | `run` | Runs the executable (if a `main` has been specified in the config). |
 | `clean` | Removes all build files. |
 | `dep-tree` | Prints a dependency tree. |
+| `prune` | Deletes build files for old dependencies that are no longer used. |
 
 ### Configuration
 
