@@ -30,6 +30,6 @@ showTree indent node =
         "\{indent} +- \{showDep node.val}\n\{subtrees}"
 
 
-public export
+public export covering
 Show DepTree where
   show = showTree ""
