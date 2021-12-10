@@ -60,7 +60,7 @@ buildPackage dep = unless (isLegacy dep) $ do
     -- Get a DepTree for each dependency
     deps <- traverse makeDepTree config.deps
     -- get list of unique dependencies
-    let deps = nubOn pkgID . toList =<< deps
+    let deps = nubOn pkgID . treeToList =<< deps
 
     traverse_ buildPackage deps
 
