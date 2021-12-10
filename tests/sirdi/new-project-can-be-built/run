@@ -1,0 +1,5 @@
+$1 new foo
+cd foo
+$1 build
+cd ..
+rm -r foo
