@@ -17,6 +17,7 @@ fetchTo (Local source) dest = do
     ignore $ createDir "\{dest}"
     mSystem "cp \{source}/sirdi.json \{dest}/sirdi.json" "Failed to copy \{source}/sirdi.json"
     mSystem "cp -r \{source}/src \{dest}/src" "Failed to copy \{source}/src"
+fetchTo Legacy _ = pure ()
 
 
 createBuildDirs : M ()
@@ -33,7 +34,7 @@ installDep name = do
 
 
 buildDependency : Dependency -> M ()
-buildDependency dep = do
+buildDependency dep = unless (isLegacy dep) $ do
     putStrLn "Building \{dep.name}"
 
     let dir = ".build/sources/\{depID dep}"
@@ -66,7 +67,7 @@ buildDependency dep = do
 
 -- TODO: perhaps rename "Dependency" to "Package"
 fetchDependency : Dependency -> M ()
-fetchDependency dep = do
+fetchDependency dep = unless (isLegacy dep) $ do
     -- Calculate where the dependency should be fetched to.
     let dir = ".build/sources/\{depID dep}"
 

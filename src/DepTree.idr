@@ -22,6 +22,7 @@ showDep dep = "\{dep.name} (\{showSrc dep.source})"
         showSrc : Source -> String
         showSrc (Git x)   = x
         showSrc (Local x) = x
+        showSrc Legacy = "legacy"
 
 
 showTree : String -> DepTree -> String

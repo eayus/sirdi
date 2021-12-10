@@ -17,6 +17,7 @@ public export
 data Source
     = Git URL
     | Local FilePath
+    | Legacy
 
 
 public export
@@ -25,10 +26,15 @@ record Dependency where
     name : String
     source : Source
 
+export
+isLegacy : Dependency -> Bool
+isLegacy (MkDep _ Legacy) = True
+isLegacy _ = False
 
 hashSource : Source -> String
 hashSource (Git url) = show $ hash url
 hashSource (Local fp) = show $ hash fp
+hashSource Legacy = ""
 
 
 export
@@ -80,7 +86,10 @@ pConfig s = case parse s of
             parseSource : (String, JSON) -> P Source
             parseSource ("git", x) = Git <$> getStr x
             parseSource ("local", x) = Local <$> getStr x
-            parseSource x = Left "Expected { 'git': ... } or  { 'local': ... }, instead got \{show x}"
+            parseSource ("legacy", x) = pure Legacy
+            parseSource x = Left
+                $ "Expected one of { 'git': ... }, { 'local': ... }, or { 'legacy': ... }\n"
+                ++ "instead got \{show x}"
 
             parseDep : JSON -> P Dependency
             parseDep (JObject [("name", name), source]) = MkDep <$> getStr name <*> parseSource source
