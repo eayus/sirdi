@@ -1,6 +1,12 @@
 # sirdi
 A simple package manager for Idris 2.
 
+## Contributing
+
+See the issues for work that needs to be done. PRs that fix existing issues should be a priority.
+
+If you want to make some large changes, then it might be worth opening an issue or draft PR. This will ensure that multiple people don't duplicate their work by independently working to solve the same problem.
+
 ## Usage
 
 ### Commands
