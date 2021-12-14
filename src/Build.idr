@@ -12,8 +12,8 @@ import Data.List
 -- TODO: Rearrange the functions in this file so they are at least grouped sensibly.
 
 
-fetchTo : Source -> String -> M ()
-fetchTo (Git link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
+fetchTo : Source Unspecified -> String -> M ()
+fetchTo (Git link _) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
 fetchTo (Local source) dest = do
     ignore $ createDir "\{dest}"
     mSystem "cp \{source}/sirdi.json \{dest}/sirdi.json" "Failed to copy \{source}/sirdi.json"
@@ -34,7 +34,7 @@ installDep name = do
     ignore $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
 
 
-buildPackage : Package -> M ()
+buildPackage : Package Unspecified -> M ()
 buildPackage dep = unless (isLegacy dep) $ do
     putStrLn "Building \{dep.name}"
 
@@ -66,7 +66,7 @@ buildPackage dep = unless (isLegacy dep) $ do
         )
 
 
-fetchPackage : Package -> M ()
+fetchPackage : Package Unspecified -> M ()
 fetchPackage dep = unless (isLegacy dep) $ do
     -- Calculate where the dependency should be fetched to.
     let dir = ".build/sources/\{pkgID dep}"
@@ -83,7 +83,7 @@ fetchPackage dep = unless (isLegacy dep) $ do
     traverse_ fetchPackage config.deps
 
 
-makeDepTree : Package -> M DepTree
+makeDepTree : Package Unspecified -> M DepTree
 makeDepTree dep = case isLegacy dep of
     True => pure $ Node dep []
     False => do
@@ -105,7 +105,7 @@ build subPkgName = do
 
     createBuildDirs
 
-    let mainDep = MkPkg config.pkgName (Local ".")
+    let mainDep = MkPkg {sk = Unspecified} config.pkgName (Local ".")
     let mainID = pkgID mainDep
 
     -- A bit of hack. Remove the existing main pkg files so we force it to rebuild
@@ -130,7 +130,7 @@ depTree subPkgName = do
     multiConfig <- readConfig "."
     config <- getSubConfig subPkgName multiConfig
 
-    let mainDep = MkPkg config.pkgName (Local ".")
+    let mainDep = MkPkg {sk = Unspecified} config.pkgName (Local ".")
 
     build subPkgName
     tree <- makeDepTree mainDep
@@ -145,7 +145,7 @@ run subPkgName = do
     multiConfig <- readConfig "."
     config <- getSubConfig subPkgName multiConfig
 
-    let mainDep = MkPkg config.pkgName (Local ".")
+    let mainDep = MkPkg {sk = Unspecified} config.pkgName (Local ".")
 
     case config.main of
          Just _ => do
@@ -194,7 +194,7 @@ export
 prune : M ()
 prune = do
     multiConfig <- readConfig "."
-    let pkgs = map (\cfg => MkPkg cfg.pkgName (Local ".")) multiConfig
+    let pkgs = map (\cfg => MkPkg {sk = Unspecified} cfg.pkgName (Local ".")) multiConfig
 
     trees <- traverse makeDepTree pkgs
     let deps = concatMap treeToList trees

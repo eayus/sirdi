@@ -1,5 +1,6 @@
 module Config
 
+import System
 import System.File.ReadWrite
 import Language.JSON
 import Data.List
@@ -13,40 +14,70 @@ URL = String
 FilePath = String
 
 
+-- This definitions below until "Config" should probably be moved into a separate file.
+
 public export
-data Source
-    = Git URL
-    | Local FilePath
-    | Legacy
+data SourceKind
+    = Pinned      -- A pinned source (usually by commit/hash).
+    | Unspecified    -- A source which may or may not be pinned. This is what we specify in config.
 
 
 public export
-record Package where
+Pin : SourceKind -> Type -> Type
+Pin Pinned      a = a
+Pin Unspecified a = Maybe a
+
+public export
+CommitHash : Type
+CommitHash = String
+
+public export
+data Source : SourceKind -> Type where
+    Git    : URL      -> Pin sk CommitHash -> Source sk
+    Local  : FilePath -> Source sk
+    Legacy : Source sk
+
+
+-- Take a source which may or may not be pinned, and pin it. This is typically done
+-- by calculating the hash of the source's contents.
+pinSource : Source Unspecified -> M (Source Pinned)
+pinSource (Git url Nothing) = do
+    (out, _) <- run "git ls-remote <url> main | awk '{print $1}'"
+    putStrLn out
+    pure (Git url "")
+pinSource (Git url (Just x)) = pure $ Git url x
+pinSource (Local fp) = pure $ Local fp
+pinSource Legacy = pure Legacy
+
+
+public export
+record Package (sk : SourceKind) where
     constructor MkPkg
     name : String
-    source : Source
+    source : Source sk
 
 export
-isLegacy : Package -> Bool
+isLegacy : Package sk -> Bool
 isLegacy (MkPkg _ Legacy) = True
 isLegacy _ = False
 
-hashSource : Source -> String
-hashSource (Git url) = show $ hash url
+hashSource : Source sk -> String
+hashSource (Git url _) = show $ hash url
 hashSource (Local fp) = show $ hash fp
 hashSource Legacy = ""
 
-
 export
-pkgID : Package -> String
+pkgID : Package sk -> String
 pkgID pkg = "\{pkg.name}\{hashSource pkg.source}"
+
+
 
 
 public export
 record Config where
     constructor MkConfig
     pkgName : String         -- Use a more precise type for this that captures valid package names
-    deps : List Package
+    deps : List (Package Unspecified)
     modules : List String -- Need a better type for module names maybe?
     main : Maybe String
     passthru : List (String, String)
@@ -83,22 +114,27 @@ pConfig s = case parse s of
                    then pure s
                    else Left "Invalid package name \{s}"
 
-            parseSource : (String, JSON) -> P Source
-            parseSource ("git", x) = Git <$> getStr x
-            parseSource ("local", x) = Local <$> getStr x
+            parseGit : JSON -> P (URL, Maybe CommitHash)
+            parseGit (JObject [("url", url), ("commit", ch)]) = pure (!(getStr url), Just !(getStr ch))
+            parseGit (JObject [("url", url)]) = pure (!(getStr url), Nothing)
+            parseGit x = Left "Expected git dependency data, instead got \{show x}"
+
+            parseSource : (String, JSON) -> P (Source Unspecified)
+            parseSource ("git", x) = uncurry Git <$> parseGit x
+            parseSource ("local", x) = (\url => Local url) <$> getStr x
             parseSource ("legacy", x) = pure Legacy
             parseSource x = Left
                 $ "Expected one of { 'git': ... }, { 'local': ... }, or { 'legacy': ... }\n"
                 ++ "instead got \{show x}"
 
-            parseDep : JSON -> P Package
+            parseDep : JSON -> P (Package Unspecified)
             parseDep (JObject [("name", name), source]) = MkPkg <$> getStr name <*> parseSource source
             parseDep x = Left "Invalid dependency \{show x}"
 
             parseMain : JSON -> P String
             parseMain = getStr
 
-            parseDeps : JSON -> P (List Package)
+            parseDeps : JSON -> P (List (Package Unspecified))
             parseDeps (JArray deps) = sequence (map parseDep deps)
             parseDeps x = Left "Expected a list of dependencies, instead got \{show x}"
 

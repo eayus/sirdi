@@ -18,14 +18,14 @@ treeToList node = node.val :: concatMap treeToList node.children
 
 public export
 DepTree : Type
-DepTree = Tree Package
+DepTree = Tree (Package Unspecified)
 
 
-showDep : Package -> String
+showDep : Package Unspecified -> String
 showDep dep = "\{dep.name} (\{showSrc dep.source})"
     where
-        showSrc : Source -> String
-        showSrc (Git x)   = x
+        showSrc : Source sk -> String
+        showSrc (Git x _)   = x
         showSrc (Local x) = x
         showSrc Legacy = "legacy"
 
