@@ -29,20 +29,25 @@ createBuildDirs = do
     ignore $ createDir ".build/deps"     -- Contains the built dependencies
 
 
-installDep : String -> M ()
-installDep name = do
-    ignore $ createDir ".build/deps/\{name}"
-    ignore $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
+||| The directory where sirdi stores the source of a package
+(.sourceDir) : Package -> String
+(.sourceDir) p = ".build/sources/\{pkgID p}"
+
+||| The directory where built dependency files are stored
+(.installDir) : Package -> String
+(.installDir) p = ".build/deps/\{pkgID p}"
+
+installDep : Package -> M ()
+installDep p = do
+    ignore $ createDir p.installDir
+    ignore $ system "cp -r \{p.sourceDir}/build/ttc/* \{p.installDir}/"
 
 
 makeDepTree : Package -> M DepTree
 makeDepTree dep = case isLegacy dep of
     True => pure $ Node dep []
     False => do
-        let dir = ".build/sources/\{pkgID dep}"
-
-        multiConfig <- readConfig dir
-
+        multiConfig <- readConfig dep.sourceDir
         config <- findSubConfig dep.name multiConfig
         children <- traverse makeDepTree config.deps
 
@@ -53,9 +58,7 @@ buildPackage : Package -> M ()
 buildPackage dep = unless (isLegacy dep) $ do
     putStrLn "Building \{dep.name}"
 
-    let dir = ".build/sources/\{pkgID dep}"
-
-    multiConfig <- readConfig dir
+    multiConfig <- readConfig dep.sourceDir
     config <- findSubConfig dep.name multiConfig
 
     -- Get a DepTree for each dependency
@@ -65,8 +68,9 @@ buildPackage dep = unless (isLegacy dep) $ do
 
     traverse_ buildPackage deps
 
-    unless !(exists ".build/deps/\{pkgID dep}") (do
+    unless !(exists dep.installDir) (do
 
+        let fname = "\{dep.sourceDir}/\{dep.name}.ipkg"
         let ipkg = MkIpkg {
             name = dep.name,
             depends = map pkgID deps,
@@ -76,19 +80,19 @@ buildPackage dep = unless (isLegacy dep) $ do
             passthru = config.passthru
         }
 
-        writeIpkg ipkg "\{dir}/\{dep.name}.ipkg"
+        writeIpkg ipkg fname
 
         let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
-        mSystem "\{setpath} idris2 --build \{dir}/\{dep.name}.ipkg" "Failed to build \{dep.name}"
+        mSystem "\{setpath} idris2 --build \{fname}" "Failed to build \{dep.name}"
 
-        installDep (pkgID dep)
+        installDep dep
         )
 
 
 fetchPackage : Package -> M ()
 fetchPackage dep = unless (isLegacy dep) $ do
     -- Calculate where the dependency should be fetched to.
-    let dir = ".build/sources/\{pkgID dep}"
+    let dir = dep.sourceDir
 
     -- If we haven't already fetched it, fetch it.
     unless !(exists dir) $ fetchTo dep.source dir
@@ -110,22 +114,22 @@ build subPkgName = do
     createBuildDirs
 
     let mainDep = MkPkg config.pkgName (Local ".")
-    let mainID = pkgID mainDep
 
-    -- A bit of hack. Remove the existing main pkg files so we force it to rebuild
-    ignore $ system "rm -rf .build/sources/\{mainID}"
-    ignore $ system "rm -rf .build/deps/\{mainID}"
-
-
+    ensureRebuild mainDep
     fetchPackage mainDep
     buildPackage mainDep
 
     -- Since interactive editors are not yet compatible with sirdi, we must copy
     -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
     -- can hopefully be removed eventually.
-    ignore $ system "cp -r .build/sources/\{mainID}/build ./"
-    ignore $ system "cp -r .build/sources/\{mainID}/\{mainDep.name}.ipkg ./"
+    ignore $ system "cp -r \{mainDep.sourceDir}/build ./"
+    ignore $ system "cp -r \{mainDep.sourceDir}/\{mainDep.name}.ipkg ./"
     ignore $ system "cp -r .build/deps ./depends"
+    where
+        ensureRebuild : Package -> M ()
+        ensureRebuild p = do
+            ignore $ system "rm -rf \{p.sourceDir}"
+            ignore $ system "rm -rf \{p.installDir}"
 
 
 export
@@ -154,7 +158,7 @@ run subPkgName = do
     case config.main of
          Just _ => do
             build subPkgName
-            ignore $ system ".build/sources/\{pkgID mainDep}/build/exec/main"
+            ignore $ system "\{mainDep.sourceDir}/build/exec/main"
          Nothing => putStrLn "Cannot run. No 'main' specified in sirdi configuration file."
 
 
