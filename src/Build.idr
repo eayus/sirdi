@@ -13,15 +13,6 @@ import Data.List
 -- TODO: Rearrange the functions in this file so they are at least grouped sensibly.
 
 
-fetchTo : Source -> String -> M ()
-fetchTo (Git link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
-fetchTo (Local source) dest = do
-    ignore $ createDir "\{dest}"
-    mSystem "cp \{source}/sirdi.json \{dest}/sirdi.json" "Failed to copy \{source}/sirdi.json"
-    mSystem "cp -r \{source}/src \{dest}/src" "Failed to copy \{source}/src"
-fetchTo Legacy _ = pure ()
-
-
 createBuildDirs : M ()
 createBuildDirs = do
     ignore $ createDir ".build"
@@ -103,6 +94,14 @@ fetchPackage dep = unless (isLegacy dep) $ do
 
     -- Recursively fetch the dependencies of this dependency.
     traverse_ fetchPackage config.deps
+      where
+        fetchTo : Source -> String -> M ()
+        fetchTo (Git link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
+        fetchTo (Local source) dest = do
+            ignore $ createDir "\{dest}"
+            mSystem "cp \{source}/sirdi.json \{dest}/sirdi.json" "Failed to copy \{source}/sirdi.json"
+            mSystem "cp -r \{source}/src \{dest}/src" "Failed to copy \{source}/src"
+        fetchTo Legacy _ = pure ()
 
 
 export
