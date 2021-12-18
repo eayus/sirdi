@@ -94,18 +94,20 @@ makeDepTree : Package -> M DepTree
 makeDepTree dep = map @{Compose} fst $ configTree dep
 
 
+getMain : Maybe String -> M (Package, Config)
+getMain subPkgName = do
+    multiConfig <- readConfig "."
+    config <- getSubConfig subPkgName multiConfig
+    let mainDep = MkPkg config.pkgName (Local ".")
+    pure (mainDep, config)
+
+
 export
 build : Maybe String -> M ()
 build subPkgName = do
-    multiConfig <- readConfig "."
-    config <- getSubConfig subPkgName multiConfig
-
+    (mainDep, _) <- getMain subPkgName
     createBuildDirs
-
-    let mainDep = MkPkg config.pkgName (Local ".")
-
     ensureRebuild mainDep
-
     cfgs <- configTree mainDep -- loads cfg again?
     ignore $ buildTree cfgs
 
@@ -125,11 +127,7 @@ build subPkgName = do
 export
 depTree : Maybe String -> M ()
 depTree subPkgName = do
-    multiConfig <- readConfig "."
-    config <- getSubConfig subPkgName multiConfig
-
-    let mainDep = MkPkg config.pkgName (Local ".")
-
+    (mainDep, _) <- getMain subPkgName
     tree <- makeDepTree mainDep
     print tree
 
@@ -137,13 +135,7 @@ depTree subPkgName = do
 export
 run : Maybe String -> M ()
 run subPkgName = do
-    -- We read config files a lot. Perhaps we should add a caching system to the
-    -- monad so that config files are kept in memory once they've been read once.
-    multiConfig <- readConfig "."
-    config <- getSubConfig subPkgName multiConfig
-
-    let mainDep = MkPkg config.pkgName (Local ".")
-
+    (mainDep, config) <- getMain subPkgName
     case config.main of
          Just _ => do
             build subPkgName
