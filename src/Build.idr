@@ -34,17 +34,6 @@ installDep p = do
     ignore $ system "cp -r \{p.sourceDir}/build/ttc/* \{p.installDir}/"
 
 
-makeDepTree : Package -> M DepTree
-makeDepTree dep = case isLegacy dep of
-    True => pure $ Node dep []
-    False => do
-        multiConfig <- readConfig dep.sourceDir
-        config <- findSubConfig dep.name multiConfig
-        children <- traverse makeDepTree config.deps
-
-        pure $ Node dep children
-
-
 ||| Builds a package
 |||
 ||| Returns a list of idris packages to add to "depends" in order to properly
@@ -101,6 +90,10 @@ configTree dep = case isLegacy dep of
             Legacy => pure ()
 
 
+makeDepTree : Package -> M DepTree
+makeDepTree dep = map @{Compose} fst $ configTree dep
+
+
 export
 build : Maybe String -> M ()
 build subPkgName = do
@@ -137,7 +130,6 @@ depTree subPkgName = do
 
     let mainDep = MkPkg config.pkgName (Local ".")
 
-    build subPkgName
     tree <- makeDepTree mainDep
     print tree
 
