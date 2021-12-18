@@ -21,14 +21,14 @@ createBuildDirs = do
 
 
 ||| The directory where sirdi stores the source of a package
-(.sourceDir) : Package -> String
+(.sourceDir) : Package Unspecified -> String
 (.sourceDir) p = ".build/sources/\{pkgID p}"
 
 ||| The directory where built dependency files are stored
-(.installDir) : Package -> String
+(.installDir) : Package Unspecified -> String
 (.installDir) p = ".build/deps/\{pkgID p}"
 
-installDep : Package -> M ()
+installDep : Package Unspecified -> M ()
 installDep p = do
     ignore $ createDir p.installDir
     ignore $ system "cp -r \{p.sourceDir}/build/ttc/* \{p.installDir}/"
@@ -38,7 +38,7 @@ installDep p = do
 |||
 ||| Returns a list of idris packages to add to "depends" in order to properly
 ||| depend on this package.
-buildTree : Tree (Package, Config) -> M (List String)
+buildTree : Tree (Package Unspecified, Config) -> M (List String)
 buildTree (Node (dep, config) deps) = case (isLegacy dep) of
     True => pure [ config.pkgName ]
     False => do
@@ -68,7 +68,7 @@ buildTree (Node (dep, config) deps) = case (isLegacy dep) of
 
 
 ||| Loads a tree with configs of all dependencies, fetching them if necessary
-configTree : Package -> M (Tree (Package, Config))
+configTree : Package Unspecified -> M (Tree (Package Unspecified, Config))
 configTree dep = case isLegacy dep of
     True => pure $ Node (dep, emptyConfig dep) []
     False => do
@@ -78,9 +78,9 @@ configTree dep = case isLegacy dep of
         children <- traverse configTree config.deps
         pure $ Node (dep, config) children
     where
-        fetch : Package -> M ()
+        fetch : Package Unspecified -> M ()
         fetch dep = case source dep of
-            Git link => mSystem "git clone \{link} \{dep.sourceDir}"
+            Git link _ => mSystem "git clone \{link} \{dep.sourceDir}"
                                 "Failed to clone \{link}"
             Local path => do ignore $ createDir "\{dep.sourceDir}"
                              mSystem "cp \{path}/sirdi.json \{dep.sourceDir}/sirdi.json"
@@ -90,11 +90,11 @@ configTree dep = case isLegacy dep of
             Legacy => pure ()
 
 
-makeDepTree : Package -> M DepTree
+makeDepTree : Package Unspecified -> M DepTree
 makeDepTree dep = map @{Compose} fst $ configTree dep
 
 
-getMain : Maybe String -> M (Package, Config)
+getMain : Maybe String -> M (Package Unspecified, Config)
 getMain subPkgName = do
     multiConfig <- readConfig "."
     config <- getSubConfig subPkgName multiConfig
@@ -119,7 +119,7 @@ build subPkgName = do
     ignore $ system "cp -r \{mainDep.sourceDir}/\{mainDep.name}.ipkg ./"
     ignore $ system "cp -r .build/deps ./depends"
     where
-        ensureRebuild : Package -> M ()
+        ensureRebuild : Package Unspecified -> M ()
         ensureRebuild p = do
             ignore $ system "rm -rf \{p.sourceDir}"
             ignore $ system "rm -rf \{p.installDir}"
@@ -187,7 +187,7 @@ export
 prune : M ()
 prune = do
     multiConfig <- readConfig "."
-    let pkgs = map (\cfg => MkPkg cfg.pkgName (Local ".")) multiConfig
+    let pkgs = map (\cfg => MkPkg {sk = Unspecified} cfg.pkgName (Local ".")) multiConfig
 
     trees <- traverse makeDepTree pkgs
     let deps = concatMap treeToList trees
