@@ -10,17 +10,21 @@ record Tree a where
     val : a
     children : List (Tree a)
 
+public export
 Functor Tree where
     map f (Node val children) = Node (f val) (map @{Compose} f children)
 
 -- Comonad
+public export
 extract : Tree a -> a
 extract = val
 
+public export
 duplicate : Tree a -> Tree (Tree a)
 duplicate (Node val children) = Node (Node val children) (map duplicate children)
 
 infixl 1 =>>
+public export
 (=>>) : Tree a ->  (Tree a -> b) -> Tree b
 (=>>) wa c = c <$> duplicate wa
 
