@@ -10,7 +10,22 @@ record Tree a where
     val : a
     children : List (Tree a)
 
+Functor Tree where
+    map f (Node val children) = Node (f val) (map @{Compose} f children)
 
+-- Comonad
+extract : Tree a -> a
+extract = val
+
+duplicate : Tree a -> Tree (Tree a)
+duplicate (Node val children) = Node (Node val children) (map duplicate children)
+
+infixl 1 =>>
+(=>>) : Tree a ->  (Tree a -> b) -> Tree b
+(=>>) wa c = c <$> duplicate wa
+
+
+-- Traversable
 export
 treeToList : Tree a -> List a
 treeToList node = node.val :: concatMap treeToList node.children
