@@ -45,51 +45,49 @@ makeDepTree dep = case isLegacy dep of
         pure $ Node dep children
 
 
-buildPackage : Package -> M ()
-buildPackage dep = unless (isLegacy dep) $ do
-    putStrLn "Building \{dep.name}"
+||| Builds a package
+|||
+||| Returns a list of idris packages to add to "depends" in order to properly
+||| depend on this package.
+buildTree : Tree (Package, Config) -> M (List String)
+buildTree (Node (dep, config) deps) = case (isLegacy dep) of
+    True => pure [ config.pkgName ]
+    False => do
+        -- Build all dependencies first
+        depNames <- nub . join <$> traverse buildTree deps
 
-    multiConfig <- readConfig dep.sourceDir
-    config <- findSubConfig dep.name multiConfig
+        putStrLn "Building \{dep.name}"
+        unless !(exists dep.installDir) $ do
+            let fname = "\{dep.sourceDir}/\{dep.name}.ipkg"
+            let ipkg = MkIpkg {
+                name = dep.name,
+                depends = depNames,
+                modules = config.modules,
+                main = config.main,
+                exec = "main" <$ config.main,
+                passthru = config.passthru
+            }
 
-    -- Get a DepTree for each dependency
-    deps <- traverse makeDepTree config.deps
-    -- get list of unique dependencies
-    let deps = nubOn pkgID . treeToList =<< deps
+            writeIpkg ipkg fname
 
-    traverse_ buildPackage deps
+            let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
+            mSystem "\{setpath} idris2 --build \{fname}" "Failed to build \{dep.name}"
 
-    unless !(exists dep.installDir) (do
+            installDep dep
 
-        let fname = "\{dep.sourceDir}/\{dep.name}.ipkg"
-        let ipkg = MkIpkg {
-            name = dep.name,
-            depends = map pkgID deps,
-            modules = config.modules,
-            main = config.main,
-            exec = "main" <$ config.main,
-            passthru = config.passthru
-        }
-
-        writeIpkg ipkg fname
-
-        let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
-        mSystem "\{setpath} idris2 --build \{fname}" "Failed to build \{dep.name}"
-
-        installDep dep
-        )
+        pure $ pkgID dep :: depNames
 
 
 ||| Loads a tree with configs of all dependencies, fetching them if necessary
-configTree : Package -> M (Tree Config)
+configTree : Package -> M (Tree (Package, Config))
 configTree dep = case isLegacy dep of
-    True => pure $ Node (emptyConfig dep) []
+    True => pure $ Node (dep, emptyConfig dep) []
     False => do
         unless !(exists dep.sourceDir) $ fetch dep
         multiConfig <- readConfig dep.sourceDir
         config <- findSubConfig dep.name multiConfig
         children <- traverse configTree config.deps
-        pure $ Node config children
+        pure $ Node (dep, config) children
     where
         fetch : Package -> M ()
         fetch dep = case source dep of
@@ -116,7 +114,7 @@ build subPkgName = do
     ensureRebuild mainDep
 
     cfgs <- configTree mainDep -- loads cfg again?
-    buildPackage mainDep
+    ignore $ buildTree cfgs
 
     -- Since interactive editors are not yet compatible with sirdi, we must copy
     -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
