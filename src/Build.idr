@@ -106,9 +106,10 @@ export
 build : Maybe String -> M ()
 build subPkgName = do
     (mainDep, _) <- getMain subPkgName
-    createBuildDirs
     ensureRebuild mainDep
-    cfgs <- configTree mainDep -- loads cfg again?
+
+    createBuildDirs
+    cfgs <- configTree mainDep -- loads main cfg again?
     ignore $ buildTree cfgs
 
     -- Since interactive editors are not yet compatible with sirdi, we must copy
@@ -138,7 +139,10 @@ run subPkgName = do
     (mainDep, config) <- getMain subPkgName
     case config.main of
          Just _ => do
-            build subPkgName
+            createBuildDirs
+            cfgs <- configTree mainDep -- loads main cfg again?
+            ignore $ buildTree cfgs
+
             ignore $ system "\{mainDep.sourceDir}/build/exec/main"
          Nothing => putStrLn "Cannot run. No 'main' specified in sirdi configuration file."
 
