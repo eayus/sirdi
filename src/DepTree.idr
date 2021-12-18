@@ -37,10 +37,10 @@ treeToList node = node.val :: concatMap treeToList node.children
 
 public export
 DepTree : Type
-DepTree = Tree (Package Unspecified)
+DepTree = Tree (Identifier Unspecified)
 
 
-showDep : Package Unspecified -> String
+showDep : Identifier Unspecified -> String
 showDep dep = "\{dep.name} (\{showSrc dep.source})"
     where
         showSrc : Source sk -> String

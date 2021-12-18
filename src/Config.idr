@@ -51,13 +51,13 @@ pinSource Legacy = pure Legacy
 
 
 public export
-record Package (sk : SourceKind) where
+record Identifier (sk : SourceKind) where
     constructor MkPkg
     name : String
     source : Source sk
 
 export
-isLegacy : Package sk -> Bool
+isLegacy : Identifier sk -> Bool
 isLegacy (MkPkg _ Legacy) = True
 isLegacy _ = False
 
@@ -67,7 +67,7 @@ hashSource (Local fp) = show $ hash fp
 hashSource Legacy = ""
 
 export
-pkgID : Package sk -> String
+pkgID : Identifier sk -> String
 pkgID pkg = "\{pkg.name}\{hashSource pkg.source}"
 
 
@@ -77,14 +77,14 @@ public export
 record Config where
     constructor MkConfig
     pkgName : String         -- Use a more precise type for this that captures valid package names
-    deps : List (Package Unspecified)
+    deps : List (Identifier Unspecified)
     modules : List String -- Need a better type for module names maybe?
     main : Maybe String
     passthru : List (String, String)
 
 
 export
-emptyConfig : Package Unspecified -> Config
+emptyConfig : Identifier Unspecified -> Config
 emptyConfig pkg = MkConfig pkg.name [] [] Nothing []
 
 
@@ -132,14 +132,14 @@ pConfig s = case parse s of
                 $ "Expected one of { 'git': ... }, { 'local': ... }, or { 'legacy': ... }\n"
                 ++ "instead got \{show x}"
 
-            parseDep : JSON -> P (Package Unspecified)
+            parseDep : JSON -> P (Identifier Unspecified)
             parseDep (JObject [("name", name), source]) = MkPkg <$> getStr name <*> parseSource source
             parseDep x = Left "Invalid dependency \{show x}"
 
             parseMain : JSON -> P String
             parseMain = getStr
 
-            parseDeps : JSON -> P (List (Package Unspecified))
+            parseDeps : JSON -> P (List (Identifier Unspecified))
             parseDeps (JArray deps) = sequence (map parseDep deps)
             parseDeps x = Left "Expected a list of dependencies, instead got \{show x}"
 
