@@ -80,28 +80,27 @@ buildPackage dep = unless (isLegacy dep) $ do
         )
 
 
-fetchPackage : Package -> M ()
-fetchPackage dep = unless (isLegacy dep) $ do
-    -- Calculate where the dependency should be fetched to.
-    let dir = dep.sourceDir
-
-    -- If we haven't already fetched it, fetch it.
-    unless !(exists dir) $ fetchTo dep.source dir
-
-    -- Read the dependencies config.
-    multiConfig <- readConfig dir
-    config <- findSubConfig dep.name multiConfig
-
-    -- Recursively fetch the dependencies of this dependency.
-    traverse_ fetchPackage config.deps
-      where
-        fetchTo : Source -> String -> M ()
-        fetchTo (Git link) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
-        fetchTo (Local source) dest = do
-            ignore $ createDir "\{dest}"
-            mSystem "cp \{source}/sirdi.json \{dest}/sirdi.json" "Failed to copy \{source}/sirdi.json"
-            mSystem "cp -r \{source}/src \{dest}/src" "Failed to copy \{source}/src"
-        fetchTo Legacy _ = pure ()
+||| Loads a tree with configs of all dependencies, fetching them if necessary
+configTree : Package -> M (Tree Config)
+configTree dep = case isLegacy dep of
+    True => pure $ Node (emptyConfig dep) []
+    False => do
+        unless !(exists dep.sourceDir) $ fetch dep
+        multiConfig <- readConfig dep.sourceDir
+        config <- findSubConfig dep.name multiConfig
+        children <- traverse configTree config.deps
+        pure $ Node config children
+    where
+        fetch : Package -> M ()
+        fetch dep = case source dep of
+            Git link => mSystem "git clone \{link} \{dep.sourceDir}"
+                                "Failed to clone \{link}"
+            Local path => do ignore $ createDir "\{dep.sourceDir}"
+                             mSystem "cp \{path}/sirdi.json \{dep.sourceDir}/sirdi.json"
+                                "Failed to copy \{path}/sirdi.json"
+                             mSystem "cp -r \{path}/src \{dep.sourceDir}/src"
+                                "Failed to copy \{path}/src"
+            Legacy => pure ()
 
 
 export
@@ -115,7 +114,8 @@ build subPkgName = do
     let mainDep = MkPkg config.pkgName (Local ".")
 
     ensureRebuild mainDep
-    fetchPackage mainDep
+
+    cfgs <- configTree mainDep -- loads cfg again?
     buildPackage mainDep
 
     -- Since interactive editors are not yet compatible with sirdi, we must copy

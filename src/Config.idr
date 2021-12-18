@@ -53,6 +53,11 @@ record Config where
 
 
 public export
+emptyConfig : Package -> Config
+emptyConfig pkg = MkConfig pkg.name [] [] Nothing []
+
+
+public export
 MultiConfig : Type
 MultiConfig = List Config
 
