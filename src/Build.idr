@@ -10,13 +10,6 @@ import DepTree
 import Data.List
 
 
-createBuildDirs : M ()
-createBuildDirs = do
-    ignore $ createDir ".build"
-    ignore $ createDir ".build/sources"  -- Store the raw git clones
-    ignore $ createDir ".build/deps"     -- Contains the built dependencies
-
-
 ||| The directory where sirdi stores the source of a package
 (.sourceDir) : Identifier pin -> String
 (.sourceDir) ident = ".build/sources/\{pkgID ident}"
@@ -31,11 +24,46 @@ installDep ident = do
     ignore $ system "cp -r \{ident.sourceDir}/build/ttc/* \{ident.installDir}/"
 
 
+Package : Type
+Package = (Identifier Unspecified, Config)
+-- name . fst == pkgName . snd
+
+
+createBuildDirs : M ()
+createBuildDirs = do
+    ignore $ createDir ".build"
+    ignore $ createDir ".build/sources"  -- Store the raw git clones
+    ignore $ createDir ".build/deps"     -- Contains the built dependencies
+
+
+||| Loads a tree with configs of all dependencies, fetching them if necessary
+configTree : Identifier Unspecified -> M (Tree Package)
+configTree ident = case isLegacy ident of
+    True => pure $ Node (ident, emptyConfig ident) []
+    False => do
+        unless !(exists ident.sourceDir) $ fetch ident
+        multiConfig <- readConfig ident.sourceDir
+        config <- findSubConfig ident.name multiConfig
+        children <- traverse configTree config.deps
+        pure $ Node (ident, config) children
+    where
+        fetch : Identifier pin -> M ()
+        fetch ident = case source ident of
+            Git link _ => mSystem "git clone \{link} \{ident.sourceDir}"
+                                "Failed to clone \{link}"
+            Local path => do ignore $ createDir "\{ident.sourceDir}"
+                             mSystem "cp \{path}/sirdi.json \{ident.sourceDir}/sirdi.json"
+                                "Failed to copy \{path}/sirdi.json"
+                             mSystem "cp -r \{path}/src \{ident.sourceDir}/src"
+                                "Failed to copy \{path}/src"
+            Legacy => pure ()
+
+
 ||| Builds a package
 |||
 ||| Returns a list of idris packages to add to "depends" in order to properly
 ||| depend on this package.
-buildTree : Tree (Identifier Unspecified, Config) -> M (List String)
+buildTree : Tree Package -> M (List String)
 buildTree (Node (ident, config) deps) = case (isLegacy ident) of
     True => pure [ config.pkgName ]
     False => do
@@ -62,29 +90,6 @@ buildTree (Node (ident, config) deps) = case (isLegacy ident) of
             installDep ident
 
         pure $ pkgID ident :: depNames
-
-
-||| Loads a tree with configs of all dependencies, fetching them if necessary
-configTree : Identifier Unspecified -> M (Tree (Identifier Unspecified, Config))
-configTree ident = case isLegacy ident of
-    True => pure $ Node (ident, emptyConfig ident) []
-    False => do
-        unless !(exists ident.sourceDir) $ fetch ident
-        multiConfig <- readConfig ident.sourceDir
-        config <- findSubConfig ident.name multiConfig
-        children <- traverse configTree config.deps
-        pure $ Node (ident, config) children
-    where
-        fetch : Identifier pin -> M ()
-        fetch ident = case source ident of
-            Git link _ => mSystem "git clone \{link} \{ident.sourceDir}"
-                                "Failed to clone \{link}"
-            Local path => do ignore $ createDir "\{ident.sourceDir}"
-                             mSystem "cp \{path}/sirdi.json \{ident.sourceDir}/sirdi.json"
-                                "Failed to copy \{path}/sirdi.json"
-                             mSystem "cp -r \{path}/src \{ident.sourceDir}/src"
-                                "Failed to copy \{path}/src"
-            Legacy => pure ()
 
 
 makeDepTree : Identifier Unspecified -> M DepTree
