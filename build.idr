@@ -4,7 +4,7 @@ import System.Path
 import Control.ANSI
 
 depends : List (String, String, Maybe String) -- package, repo, commit
-depends = [("hashable", "git@github.com:Z-snails/Idris2-hashable.git", Just "d6fec8c878057909b67f3d4da334155de4f37907")]
+depends = [("hashable", "https://github.com/Z-snails/Idris2-hashable.git", Just "d6fec8c878057909b67f3d4da334155de4f37907")]
 
 printError : String -> IO ()
 printError = printLn . colored Red
