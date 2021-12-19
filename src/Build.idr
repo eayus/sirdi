@@ -3,22 +3,30 @@ module Build
 import Config
 import System
 import System.Directory
+import System.File
 import Ipkg
 import Util
 import DepTree
 import Data.List
 
 
--- TODO: Rearrange the functions in this file so they are at least grouped sensibly.
+||| The directory where sirdi stores the source of a package
+(.sourceDir) : Identifier pin -> String
+(.sourceDir) ident = ".build/sources/\{pkgID ident}"
+
+||| The directory where built dependency files are stored
+(.installDir) : Identifier pin -> String
+(.installDir) ident = ".build/deps/\{pkgID ident}"
+
+installDep : Identifier pin -> M ()
+installDep ident = do
+    ignore $ createDir ident.installDir
+    ignore $ system "cp -r \{ident.sourceDir}/build/ttc/* \{ident.installDir}/"
 
 
-fetchTo : Source Unspecified -> String -> M ()
-fetchTo (Git link _) dest = mSystem "git clone \{link} \{dest}" "Failed to clone \{link}"
-fetchTo (Local source) dest = do
-    ignore $ createDir "\{dest}"
-    mSystem "cp \{source}/sirdi.json \{dest}/sirdi.json" "Failed to copy \{source}/sirdi.json"
-    mSystem "cp -r \{source}/src \{dest}/src" "Failed to copy \{source}/src"
-fetchTo Legacy _ = pure ()
+Package : Type
+Package = (Identifier Unspecified, Config)
+-- Duplication betwen (name . fst) and  (pkgName . snd)
 
 
 createBuildDirs : M ()
@@ -28,129 +36,115 @@ createBuildDirs = do
     ignore $ createDir ".build/deps"     -- Contains the built dependencies
 
 
-installDep : String -> M ()
-installDep name = do
-    ignore $ createDir ".build/deps/\{name}"
-    ignore $ system "cp -r .build/sources/\{name}/build/ttc/* .build/deps/\{name}/"
-
-
-buildPackage : Package Unspecified -> M ()
-buildPackage dep = unless (isLegacy dep) $ do
-    putStrLn "Building \{dep.name}"
-
-    let dir = ".build/sources/\{pkgID dep}"
-
-    multiConfig <- readConfig dir
-    config <- findSubConfig dep.name multiConfig
-
-    traverse_ buildPackage config.deps
-
-    n <- system "[ -d '.build/deps/\{pkgID dep}' ]"
-    when (n /= 0) (do
-
-        let ipkg = MkIpkg {
-            name = dep.name,
-            depends = map pkgID config.deps,
-            modules = config.modules,
-            main = config.main,
-            exec = "main" <$ config.main,
-            passthru = config.passthru
-        }
-
-        writeIpkg ipkg "\{dir}/\{dep.name}.ipkg"
-
-        let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
-        mSystem "\{setpath} idris2 --build \{dir}/\{dep.name}.ipkg" "Failed to build \{dep.name}"
-
-        installDep (pkgID dep)
-        )
-
-
-fetchPackage : Package Unspecified -> M ()
-fetchPackage dep = unless (isLegacy dep) $ do
-    -- Calculate where the dependency should be fetched to.
-    let dir = ".build/sources/\{pkgID dep}"
-
-    -- If we haven't already fetched it, fetch it.
-    n <- system "[ -d '\{dir}' ]"
-    when (n /= 0) (fetchTo dep.source dir)
-
-    -- Read the dependencies config.
-    multiConfig <- readConfig dir
-    config <- findSubConfig dep.name multiConfig
-
-    -- Recursively fetch the dependencies of this dependency.
-    traverse_ fetchPackage config.deps
-
-
-makeDepTree : Package Unspecified -> M DepTree
-makeDepTree dep = case isLegacy dep of
-    True => pure $ Node dep []
+||| Loads a tree with configs of all dependencies, fetching them if necessary
+recipesFrom : Identifier Unspecified -> M (Tree Package)
+recipesFrom ident = case isLegacy ident of
+    True => pure $ Node (ident, emptyConfig ident) []
     False => do
-        let dir = ".build/sources/\{pkgID dep}"
+        unless !(exists ident.sourceDir) $ fetch ident
+        multiConfig <- readConfig ident.sourceDir
+        config <- findSubConfig ident.name multiConfig
+        children <- traverse recipesFrom config.deps
+        pure $ Node (ident, config) children
+    where
+        fetch : Identifier pin -> M ()
+        fetch ident = case source ident of
+            Git link _ => mSystem "git clone \{link} \{ident.sourceDir}"
+                                "Failed to clone \{link}"
+            Local path => do ignore $ createDir "\{ident.sourceDir}"
+                             mSystem "cp \{path}/sirdi.json \{ident.sourceDir}/sirdi.json"
+                                "Failed to copy \{path}/sirdi.json"
+                             mSystem "cp -r \{path}/src \{ident.sourceDir}/src"
+                                "Failed to copy \{path}/src"
+            Legacy => pure ()
 
-        multiConfig <- readConfig dir
-        config <- findSubConfig dep.name multiConfig
 
-        children <- traverse makeDepTree config.deps
+||| Builds a package
+|||
+||| Returns a list of idris packages to add to "depends" in order to properly
+||| depend on this package.
+compile : Tree Package -> M (List String)
+compile (Node (ident, config) deps) = case (isLegacy ident) of
+    True => pure [ config.pkgName ]
+    False => do
+        -- Build all dependencies first
+        depNames <- nub . join <$> traverse compile deps
 
-        pure $ Node dep children
+        unless !(exists ident.installDir) $ do
+            putStrLn "Building \{ident.name}"
+            let fname = "\{ident.sourceDir}/\{ident.name}.ipkg"
+            let ipkg = MkIpkg {
+                name = ident.name,
+                depends = depNames,
+                modules = config.modules,
+                main = config.main,
+                exec = "main" <$ config.main,
+                passthru = config.passthru
+            }
+
+            writeIpkg ipkg fname
+
+            let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
+            mSystem "\{setpath} idris2 --build \{fname}" "Failed to build \{ident.name}"
+
+            installDep ident
+
+        pure $ pkgID ident :: depNames
+
+
+makeDepTree : Identifier Unspecified -> M DepTree
+makeDepTree ident = map @{Compose} fst $ recipesFrom ident
+
+
+||| Basic handler for CLI argument
+getMain : Maybe String -> M Package
+getMain subPkgName = do
+    multiConfig <- readConfig "."
+    config <- getSubConfig subPkgName multiConfig
+    let mainIdent = MkPkg config.pkgName (Local ".")
+    pure (mainIdent, config)
 
 
 export
 build : Maybe String -> M ()
 build subPkgName = do
-    multiConfig <- readConfig "."
-    config <- getSubConfig subPkgName multiConfig
+    (ident, _) <- getMain subPkgName
 
+    ensureRebuild ident
     createBuildDirs
-
-    let mainDep = MkPkg {sk = Unspecified} config.pkgName (Local ".")
-    let mainID = pkgID mainDep
-
-    -- A bit of hack. Remove the existing main pkg files so we force it to rebuild
-    ignore $ system "rm -rf .build/sources/\{mainID}"
-    ignore $ system "rm -rf .build/deps/\{mainID}"
-
-
-    fetchPackage mainDep
-    buildPackage mainDep
+    ignore $ compile !(recipesFrom ident) -- loads main cfg again
 
     -- Since interactive editors are not yet compatible with sirdi, we must copy
     -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
     -- can hopefully be removed eventually.
-    ignore $ system "cp -r .build/sources/\{mainID}/build ./"
-    ignore $ system "cp -r .build/sources/\{mainID}/\{mainDep.name}.ipkg ./"
+    ignore $ system "cp -r \{ident.sourceDir}/build ./"
+    ignore $ system "cp -r \{ident.sourceDir}/\{ident.name}.ipkg ./"
     ignore $ system "cp -r .build/deps ./depends"
+    where
+        ensureRebuild : Identifier pin -> M ()
+        ensureRebuild ident = do
+            ignore $ system "rm -rf \{ident.sourceDir}"
+            ignore $ system "rm -rf \{ident.installDir}"
 
 
 export
 depTree : Maybe String -> M ()
 depTree subPkgName = do
-    multiConfig <- readConfig "."
-    config <- getSubConfig subPkgName multiConfig
-
-    let mainDep = MkPkg {sk = Unspecified} config.pkgName (Local ".")
-
-    build subPkgName
-    tree <- makeDepTree mainDep
+    (ident, _) <- getMain subPkgName
+    tree <- makeDepTree ident
     print tree
 
 
 export
 run : Maybe String -> M ()
 run subPkgName = do
-    -- We read config files a lot. Perhaps we should add a caching system to the
-    -- monad so that config files are kept in memory once they've been read once.
-    multiConfig <- readConfig "."
-    config <- getSubConfig subPkgName multiConfig
-
-    let mainDep = MkPkg {sk = Unspecified} config.pkgName (Local ".")
-
+    (ident, config) <- getMain subPkgName
     case config.main of
          Just _ => do
-            build subPkgName
-            ignore $ system ".build/sources/\{pkgID mainDep}/build/exec/main"
+            createBuildDirs
+            ignore $ compile !(recipesFrom ident)
+
+            ignore $ system "\{ident.sourceDir}/build/exec/main"
          Nothing => putStrLn "Cannot run. No 'main' specified in sirdi configuration file."
 
 

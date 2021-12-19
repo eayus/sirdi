@@ -1,0 +1,6 @@
+package nia
+sourcedir = "src"
+modules = Nia
+depends = examp5508062155434793401, contrib
+main = Nia
+executable = main

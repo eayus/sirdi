@@ -1,0 +1,7 @@
+cd nia
+$1 build >/dev/null
+cat nia.ipkg
+
+rm -rf .build
+rm -rf depends
+rm nia.ipkg

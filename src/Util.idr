@@ -1,6 +1,7 @@
 module Util
 
 import System
+import Data.List
 
 
 export
@@ -55,3 +56,8 @@ mSystem command onErr = do
     case n of
          0 => pure ()
          _ => mErr onErr
+
+export
+nubOn : Eq b => (a -> b) -> List a -> List a
+nubOn f a = nubBy ((==) `on` f) a
+

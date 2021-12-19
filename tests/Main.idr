@@ -5,6 +5,7 @@ import Test.Golden
 allTests : TestPool
 allTests = MkTestPool "Sirdi golden tests" [] Nothing
     [ "new-project-can-be-built"
+    , "transitive-deps-added-to-ipkg"
     ]
 
 main : IO ()
