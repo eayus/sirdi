@@ -26,7 +26,7 @@ installDep ident = do
 
 Package : Type
 Package = (Identifier Unspecified, Config)
--- name . fst == pkgName . snd
+-- Duplication betwen (name . fst) and  (pkgName . snd)
 
 
 createBuildDirs : M ()
@@ -37,14 +37,14 @@ createBuildDirs = do
 
 
 ||| Loads a tree with configs of all dependencies, fetching them if necessary
-configTree : Identifier Unspecified -> M (Tree Package)
-configTree ident = case isLegacy ident of
+recipesFrom : Identifier Unspecified -> M (Tree Package)
+recipesFrom ident = case isLegacy ident of
     True => pure $ Node (ident, emptyConfig ident) []
     False => do
         unless !(exists ident.sourceDir) $ fetch ident
         multiConfig <- readConfig ident.sourceDir
         config <- findSubConfig ident.name multiConfig
-        children <- traverse configTree config.deps
+        children <- traverse recipesFrom config.deps
         pure $ Node (ident, config) children
     where
         fetch : Identifier pin -> M ()
@@ -63,15 +63,15 @@ configTree ident = case isLegacy ident of
 |||
 ||| Returns a list of idris packages to add to "depends" in order to properly
 ||| depend on this package.
-buildTree : Tree Package -> M (List String)
-buildTree (Node (ident, config) deps) = case (isLegacy ident) of
+compile : Tree Package -> M (List String)
+compile (Node (ident, config) deps) = case (isLegacy ident) of
     True => pure [ config.pkgName ]
     False => do
         -- Build all dependencies first
-        depNames <- nub . join <$> traverse buildTree deps
+        depNames <- nub . join <$> traverse compile deps
 
-        putStrLn "Building \{ident.name}"
         unless !(exists ident.installDir) $ do
+            putStrLn "Building \{ident.name}"
             let fname = "\{ident.sourceDir}/\{ident.name}.ipkg"
             let ipkg = MkIpkg {
                 name = ident.name,
@@ -93,9 +93,10 @@ buildTree (Node (ident, config) deps) = case (isLegacy ident) of
 
 
 makeDepTree : Identifier Unspecified -> M DepTree
-makeDepTree ident = map @{Compose} fst $ configTree ident
+makeDepTree ident = map @{Compose} fst $ recipesFrom ident
 
 
+||| Basic handler for CLI argument
 getMain : Maybe String -> M Package
 getMain subPkgName = do
     multiConfig <- readConfig "."
@@ -108,11 +109,10 @@ export
 build : Maybe String -> M ()
 build subPkgName = do
     (ident, _) <- getMain subPkgName
-    ensureRebuild ident
 
+    ensureRebuild ident
     createBuildDirs
-    cfgs <- configTree ident -- loads main cfg again?
-    ignore $ buildTree cfgs
+    ignore $ compile !(recipesFrom ident) -- loads main cfg again
 
     -- Since interactive editors are not yet compatible with sirdi, we must copy
     -- the "build/", ".deps" and "ipkg" back to the project root. This is annoying and
@@ -142,8 +142,7 @@ run subPkgName = do
     case config.main of
          Just _ => do
             createBuildDirs
-            cfgs <- configTree ident -- loads main cfg again?
-            ignore $ buildTree cfgs
+            ignore $ compile !(recipesFrom ident)
 
             ignore $ system "\{ident.sourceDir}/build/exec/main"
          Nothing => putStrLn "Cannot run. No 'main' specified in sirdi configuration file."

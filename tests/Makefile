@@ -19,5 +19,4 @@ testbin:
 
 clean:
 	rm -r build
-	# todo: clean up tes
 
