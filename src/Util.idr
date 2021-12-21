@@ -62,7 +62,20 @@ mSystem command onErr = do
          0 => pure ()
          _ => mErr onErr
 
+
+export
+mRun : (command : String) -> M String
+mRun command = do
+    (out, n) <- run command
+    case n of
+         0 => pure out
+         _ => mErr "Running \{show command} failed with error \{show out}"
+
 export
 nubOn : Eq b => (a -> b) -> List a -> List a
 nubOn f a = nubBy ((==) `on` f) a
 
+
+export
+gitRemoteLatestCommit : URL -> M String
+gitRemoteLatestCommit url = mRun "git ls-remote \{url} main | awk '{print $1}'"

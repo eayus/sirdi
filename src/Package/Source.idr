@@ -36,11 +36,21 @@ CommitHash = String
 public export
 data Source : PinKind -> Type where
     ||| The source files are located on a repote git repository.
-    Git    : URL      -> Pin sk CommitHash -> Source sk
+    Git : URL -> Pin sk CommitHash -> Source sk
 
     ||| The source files are located in a directory on the local mcahine.
-    Local  : FilePath -> Source sk
+    Local : FilePath -> Source sk
 
     ||| The source files are installed on the local machine using the legacy
     ||| "ipkg" system.
     Legacy : Source sk
+
+
+||| Take a source which may or may not be pinned, and pin it. This involves
+||| inferring a suitable version to use.
+export
+pinSource : Source MaybePinned -> M (Source IsPinned)
+pinSource (Local fp)         = pure $ Local fp
+pinSource Legacy             = pure $ Legacy
+pinSource (Git url (Just x)) = pure $ Git url x
+pinSource (Git url Nothing)  = Git url <$> gitRemoteLatestCommit url

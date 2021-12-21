@@ -9,16 +9,6 @@ import Data.Hashable
 import public Package.Source
 
 
--- Take a source which may or may not be pinned, and pin it. This is typically done
--- by calculating the hash of the source's contents.
-export
-pinSource : Source MaybePinned -> M (Source IsPinned)
-pinSource (Git url Nothing) = do
-    (out, _) <- run "git ls-remote \{url} main | awk '{print $1}'"
-    pure (Git url out)
-pinSource (Git url (Just x)) = pure $ Git url x
-pinSource (Local fp) = pure $ Local fp
-pinSource Legacy = pure Legacy
 
 
 public export
