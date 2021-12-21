@@ -3,6 +3,11 @@ module Util
 import System
 import Data.List
 
+public export
+URL, FilePath : Type
+URL = String
+FilePath = String
+
 
 export
 record M a where

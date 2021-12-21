@@ -25,7 +25,7 @@ installDep ident = do
 
 
 Package : Type
-Package = (Identifier Pinned, Config)
+Package = (Identifier IsPinned, Config)
 -- Duplication betwen (name . fst) and  (pkgName . snd)
 
 
@@ -37,7 +37,7 @@ createBuildDirs = do
 
 
 ||| Loads a tree with configs of all dependencies, fetching them if necessary
-recipesFrom : Identifier Pinned -> M (Tree Package)
+recipesFrom : Identifier IsPinned -> M (Tree Package)
 recipesFrom ident = case isLegacy ident of
     True => pure $ Node (ident, emptyConfig ident) []
     False => do
@@ -49,7 +49,7 @@ recipesFrom ident = case isLegacy ident of
                                    recipesFrom dep') config.deps
         pure $ Node (ident, config) children
     where
-        fetch : Identifier Pinned -> M ()
+        fetch : Identifier IsPinned -> M ()
         fetch ident = case source ident of
             Git link hash => mSystem "git clone \{link} \{ident.sourceDir} && cd \{ident.sourceDir} && git checkout \{hash}"
                                 "Failed to clone \{link}"
@@ -94,7 +94,7 @@ compile (Node (ident, config) deps) = case (isLegacy ident) of
         pure $ pkgID ident :: depNames
 
 
-makeDepTree : Identifier Pinned -> M DepTree
+makeDepTree : Identifier IsPinned -> M DepTree
 makeDepTree ident = map @{Compose} fst $ recipesFrom ident
 
 
@@ -190,7 +190,7 @@ export
 prune : M ()
 prune = do
     multiConfig <- readConfig "."
-    let pkgs = map (\cfg => MkPkg {sk = Unspecified} cfg.pkgName (Local ".")) multiConfig
+    let pkgs = map (\cfg => MkPkg {sk = MaybePinned} cfg.pkgName (Local ".")) multiConfig
 
     pkgs <- traverse pinIdentifier pkgs
 

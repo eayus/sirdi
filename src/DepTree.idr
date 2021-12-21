@@ -2,6 +2,7 @@ module DepTree
 
 import Config
 import Data.String
+import Util
 
 
 public export
@@ -37,13 +38,13 @@ treeToList node = node.val :: concatMap treeToList node.children
 
 public export
 DepTree : Type
-DepTree = Tree (Identifier Pinned)
+DepTree = Tree (Identifier IsPinned)
 
 
-showDep : Identifier Pinned -> String
+showDep : Identifier IsPinned -> String
 showDep dep = "\{dep.name} (\{showSrc dep.source})"
     where
-        showSrc : Source Pinned -> String
+        showSrc : Source IsPinned -> String
         showSrc (Git x h)   = "\{x} @ \{h}"
         showSrc (Local x) = x
         showSrc Legacy = "legacy"

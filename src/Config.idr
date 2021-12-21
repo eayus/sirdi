@@ -6,42 +6,13 @@ import Language.JSON
 import Data.List
 import Util
 import Data.Hashable
-
-
-public export
-URL, FilePath : Type
-URL = String
-FilePath = String
-
-
--- This definitions below until "Config" should probably be moved into a separate file.
-
-public export
-data SourceKind
-    = Pinned         -- A pinned source (usually by commit/hash).
-    | Unspecified    -- A source which may or may not be pinned. This is what we specify in config.
-
-
-public export
-Pin : SourceKind -> Type -> Type
-Pin Pinned      a = a
-Pin Unspecified a = Maybe a
-
-public export
-CommitHash : Type
-CommitHash = String
-
-public export
-data Source : SourceKind -> Type where
-    Git    : URL      -> Pin sk CommitHash -> Source sk
-    Local  : FilePath -> Source sk
-    Legacy : Source sk
+import public Package.Source
 
 
 -- Take a source which may or may not be pinned, and pin it. This is typically done
 -- by calculating the hash of the source's contents.
 export
-pinSource : Source Unspecified -> M (Source Pinned)
+pinSource : Source MaybePinned -> M (Source IsPinned)
 pinSource (Git url Nothing) = do
     (out, _) <- run "git ls-remote \{url} main | awk '{print $1}'"
     pure (Git url out)
@@ -51,13 +22,13 @@ pinSource Legacy = pure Legacy
 
 
 public export
-record Identifier (sk : SourceKind) where
+record Identifier (sk : PinKind) where
     constructor MkPkg
     name : String
     source : Source sk
 
 export
-pinIdentifier : Identifier Unspecified -> M (Identifier Pinned)
+pinIdentifier : Identifier MaybePinned -> M (Identifier IsPinned)
 pinIdentifier ident = MkPkg ident.name <$> pinSource ident.source
 
 export
@@ -81,7 +52,7 @@ public export
 record Config where
     constructor MkConfig
     pkgName : String         -- Use a more precise type for this that captures valid package names
-    deps : List (Identifier Unspecified)
+    deps : List (Identifier MaybePinned)
     modules : List String -- Need a better type for module names maybe?
     main : Maybe String
     passthru : List (String, String)
@@ -128,7 +99,7 @@ pConfig s = case parse s of
             parseGit (JObject [("url", url)]) = pure (!(getStr url), Nothing)
             parseGit x = Left "Expected git dependency data, instead got \{show x}"
 
-            parseSource : (String, JSON) -> P (Source Unspecified)
+            parseSource : (String, JSON) -> P (Source MaybePinned)
             parseSource ("git", x) = uncurry Git <$> parseGit x
             parseSource ("local", x) = (\url => Local url) <$> getStr x
             parseSource ("legacy", x) = pure Legacy
@@ -136,14 +107,14 @@ pConfig s = case parse s of
                 $ "Expected one of { 'git': ... }, { 'local': ... }, or { 'legacy': ... }\n"
                 ++ "instead got \{show x}"
 
-            parseDep : JSON -> P (Identifier Unspecified)
+            parseDep : JSON -> P (Identifier MaybePinned)
             parseDep (JObject [("name", name), source]) = MkPkg <$> getStr name <*> parseSource source
             parseDep x = Left "Invalid dependency \{show x}"
 
             parseMain : JSON -> P String
             parseMain = getStr
 
-            parseDeps : JSON -> P (List (Identifier Unspecified))
+            parseDeps : JSON -> P (List (Identifier MaybePinned))
             parseDeps (JArray deps) = sequence (map parseDep deps)
             parseDeps x = Left "Expected a list of dependencies, instead got \{show x}"
 
