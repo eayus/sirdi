@@ -1,8 +1,9 @@
 module DepTree
 
-import Config
 import Data.String
 import Util
+import Package.Identifier
+import Package.Source
 
 
 public export

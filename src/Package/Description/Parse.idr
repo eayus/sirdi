@@ -1,32 +1,13 @@
-module Config
+module Package.Description.Parse
 
-import System
-import System.File.ReadWrite
+import Package.Description
 import Language.JSON
 import Data.List
 import Util
-import Data.Hashable
-import public Package.Source
-import public Package.Identifier
+import System.File.ReadWrite
+import Package.Source
+import Package.Identifier
 
-public export
-record Config where
-    constructor MkConfig
-    pkgName : String         -- Use a more precise type for this that captures valid package names
-    deps : List (Identifier MaybePinned)
-    modules : List String -- Need a better type for module names maybe?
-    main : Maybe String
-    passthru : List (String, String)
-
-
-export
-emptyConfig : Identifier a -> Config
-emptyConfig pkg = MkConfig pkg.name [] [] Nothing []
-
-
-public export
-MultiConfig : Type
-MultiConfig = List Config
 
 
 P : Type -> Type
@@ -39,9 +20,9 @@ lookup' x xs = case lookup x xs of
                     Nothing => Left "Expected to find key \{show x} in \{show xs}"
 
 
-pConfig : String -> P MultiConfig
-pConfig s = case parse s of
-                 Just x => parseMultiConfig x
+pDescription : String -> P MultiDescription
+pDescription s = case parse s of
+                 Just x => parseMultiDescription x
                  Nothing => Left "Failed to parse JSON from: \{s}"
       where
             getStr : JSON -> P String
@@ -92,8 +73,8 @@ pConfig s = case parse s of
             parsePassthru _ = Nothing
 
 
-            parseConfig : JSON -> P Config
-            parseConfig (JObject obj) = do
+            parseDescription : JSON -> P Description
+            parseDescription (JObject obj) = do
                 pkgName <- lookup' "name" obj >>= parseName
                 deps <- lookup' "deps" obj >>= parseDeps
                 mods <- lookup' "modules" obj >>= parseMods
@@ -107,36 +88,23 @@ pConfig s = case parse s of
                 let pthru = catMaybes . sequence $
                     (lookup "passthru" obj >>= parsePassthru)
 
-                pure $ MkConfig pkgName deps mods main pthru
-            parseConfig x = Left "Expected config object, instead got \{show x}"
+                pure $ MkDescription pkgName deps mods main pthru
+            parseDescription x = Left "Expected config object, instead got \{show x}"
 
-            parseMultiConfig : JSON -> P MultiConfig
-            parseMultiConfig (JArray configs) = traverse parseConfig configs
-            parseMultiConfig x = Left "Expected an array of configs, instead got \{show x}"
+            parseMultiDescription : JSON -> P MultiDescription
+            parseMultiDescription (JArray configs) = traverse parseDescription configs
+            parseMultiDescription x = Left "Expected an array of configs, instead got \{show x}"
 
 export
-readConfig : (dir : String) -> M MultiConfig
-readConfig dir = do
+readDescription : (dir : String) -> M MultiDescription
+readDescription dir = do
     let filepath = "\{dir}/sirdi.json"
 
     Right contents <- readFile filepath | Left err => mErr "Can't find file \{filepath}"
 
-    case pConfig contents of
+    case pDescription contents of
          Right config => pure config
          Left err => mErr "Failed to parse JSON file \{filepath}. Error:\n\{err}"
 
 
-export
-findSubConfig : String -> MultiConfig -> M Config
-findSubConfig name multi =
-    case find (\cfg => cfg.pkgName == name) multi of
-         Just c => pure c
-         Nothing => mErr "Cannot find definition for package \{name} in config"
 
-
-export
-getSubConfig : Maybe String -> MultiConfig -> M Config
-getSubConfig (Just name) multi = findSubConfig name multi
-getSubConfig Nothing [ x ] = pure x
-getSubConfig Nothing [] = mErr "Empty configuration"
-getSubConfig Nothing _ = mErr "Need to specify which subconfig to build"

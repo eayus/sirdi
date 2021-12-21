@@ -1,6 +1,5 @@
 module Build
 
-import Config
 import System
 import System.Directory
 import System.File
@@ -8,6 +7,10 @@ import Ipkg
 import Util
 import DepTree
 import Data.List
+import Package.Description
+import Package.Description.Parse
+import Package.Source
+import Package.Identifier
 
 
 ||| The directory where sirdi stores the source of a package
@@ -25,8 +28,8 @@ installDep ident = do
 
 
 Package : Type
-Package = (Identifier IsPinned, Config)
--- Duplication betwen (name . fst) and  (pkgName . snd)
+Package = (Identifier IsPinned, Description)
+-- Duplication betwen (name . fst) and  (name . snd)
 
 
 createBuildDirs : M ()
@@ -39,11 +42,11 @@ createBuildDirs = do
 ||| Loads a tree with configs of all dependencies, fetching them if necessary
 recipesFrom : Identifier IsPinned -> M (Tree Package)
 recipesFrom ident = case isLegacy ident.source of
-    True => pure $ Node (ident, emptyConfig ident) []
+    True => pure $ Node (ident, emptyDescription ident) []
     False => do
         unless !(exists ident.sourceDir) $ fetch ident
-        multiConfig <- readConfig ident.sourceDir
-        config <- findSubConfig ident.name multiConfig
+        multiDescription <- readDescription ident.sourceDir
+        config <- findSubDescription ident.name multiDescription
         children <- traverse (\dep => do
                                    dep' <- pinIdentifier dep
                                    recipesFrom dep') config.deps
@@ -67,7 +70,7 @@ recipesFrom ident = case isLegacy ident.source of
 ||| depend on this package.
 compile : Tree Package -> M (List String)
 compile (Node (ident, config) deps) = case (isLegacy ident.source) of
-    True => pure [ config.pkgName ]
+    True => pure [ config.name ]
     False => do
         -- Build all dependencies first
         depNames <- nub . join <$> traverse compile deps
@@ -101,9 +104,9 @@ makeDepTree ident = map @{Compose} fst $ recipesFrom ident
 ||| Basic handler for CLI argument
 getMain : Maybe String -> M Package
 getMain subPkgName = do
-    multiConfig <- readConfig "."
-    config <- getSubConfig subPkgName multiConfig
-    let mainIdent = MkPkg config.pkgName (Local ".")
+    multiDescription <- readDescription "."
+    config <- getSubDescription subPkgName multiDescription
+    let mainIdent = MkPkg config.name (Local ".")
     pure (mainIdent, config)
 
 
@@ -176,7 +179,7 @@ new name = do
 export
 clean : M ()
 clean = do
-    _ <- readConfig "." -- To ensure that we are in a sirdi directory.
+    _ <- readDescription "." -- To ensure that we are in a sirdi directory.
 
     ignore $ system "rm -rf ./depends"
     ignore $ system "rm -rf ./build"
@@ -189,8 +192,8 @@ clean = do
 export
 prune : M ()
 prune = do
-    multiConfig <- readConfig "."
-    let pkgs = map (\cfg => MkPkg {pk = MaybePinned} cfg.pkgName (Local ".")) multiConfig
+    multiDescription <- readDescription "."
+    let pkgs = map (\cfg => MkPkg {pk = MaybePinned} cfg.name (Local ".")) multiDescription
 
     pkgs <- traverse pinIdentifier pkgs
 
