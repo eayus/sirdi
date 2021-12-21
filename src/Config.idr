@@ -18,7 +18,7 @@ FilePath = String
 
 public export
 data SourceKind
-    = Pinned      -- A pinned source (usually by commit/hash).
+    = Pinned         -- A pinned source (usually by commit/hash).
     | Unspecified    -- A source which may or may not be pinned. This is what we specify in config.
 
 
@@ -40,11 +40,11 @@ data Source : SourceKind -> Type where
 
 -- Take a source which may or may not be pinned, and pin it. This is typically done
 -- by calculating the hash of the source's contents.
+export
 pinSource : Source Unspecified -> M (Source Pinned)
 pinSource (Git url Nothing) = do
-    (out, _) <- run "git ls-remote <url> main | awk '{print $1}'"
-    putStrLn out
-    pure (Git url "")
+    (out, _) <- run "git ls-remote \{url} main | awk '{print $1}'"
+    pure (Git url out)
 pinSource (Git url (Just x)) = pure $ Git url x
 pinSource (Local fp) = pure $ Local fp
 pinSource Legacy = pure Legacy
@@ -55,6 +55,10 @@ record Identifier (sk : SourceKind) where
     constructor MkPkg
     name : String
     source : Source sk
+
+export
+pinIdentifier : Identifier Unspecified -> M (Identifier Pinned)
+pinIdentifier ident = MkPkg ident.name <$> pinSource ident.source
 
 export
 isLegacy : Identifier sk -> Bool
@@ -84,7 +88,7 @@ record Config where
 
 
 export
-emptyConfig : Identifier Unspecified -> Config
+emptyConfig : Identifier a -> Config
 emptyConfig pkg = MkConfig pkg.name [] [] Nothing []
 
 

@@ -25,7 +25,7 @@ installDep ident = do
 
 
 Package : Type
-Package = (Identifier Unspecified, Config)
+Package = (Identifier Pinned, Config)
 -- Duplication betwen (name . fst) and  (pkgName . snd)
 
 
@@ -37,19 +37,21 @@ createBuildDirs = do
 
 
 ||| Loads a tree with configs of all dependencies, fetching them if necessary
-recipesFrom : Identifier Unspecified -> M (Tree Package)
+recipesFrom : Identifier Pinned -> M (Tree Package)
 recipesFrom ident = case isLegacy ident of
     True => pure $ Node (ident, emptyConfig ident) []
     False => do
         unless !(exists ident.sourceDir) $ fetch ident
         multiConfig <- readConfig ident.sourceDir
         config <- findSubConfig ident.name multiConfig
-        children <- traverse recipesFrom config.deps
+        children <- traverse (\dep => do
+                                   dep' <- pinIdentifier dep
+                                   recipesFrom dep') config.deps
         pure $ Node (ident, config) children
     where
-        fetch : Identifier pin -> M ()
+        fetch : Identifier Pinned -> M ()
         fetch ident = case source ident of
-            Git link _ => mSystem "git clone \{link} \{ident.sourceDir}"
+            Git link hash => mSystem "git clone \{link} \{ident.sourceDir} && cd \{ident.sourceDir} && git checkout \{hash}"
                                 "Failed to clone \{link}"
             Local path => do ignore $ createDir "\{ident.sourceDir}"
                              mSystem "cp \{path}/sirdi.json \{ident.sourceDir}/sirdi.json"
@@ -92,7 +94,7 @@ compile (Node (ident, config) deps) = case (isLegacy ident) of
         pure $ pkgID ident :: depNames
 
 
-makeDepTree : Identifier Unspecified -> M DepTree
+makeDepTree : Identifier Pinned -> M DepTree
 makeDepTree ident = map @{Compose} fst $ recipesFrom ident
 
 
@@ -189,6 +191,8 @@ prune : M ()
 prune = do
     multiConfig <- readConfig "."
     let pkgs = map (\cfg => MkPkg {sk = Unspecified} cfg.pkgName (Local ".")) multiConfig
+
+    pkgs <- traverse pinIdentifier pkgs
 
     trees <- traverse makeDepTree pkgs
     let deps = concatMap treeToList trees

@@ -37,14 +37,14 @@ treeToList node = node.val :: concatMap treeToList node.children
 
 public export
 DepTree : Type
-DepTree = Tree (Identifier Unspecified)
+DepTree = Tree (Identifier Pinned)
 
 
-showDep : Identifier Unspecified -> String
+showDep : Identifier Pinned -> String
 showDep dep = "\{dep.name} (\{showSrc dep.source})"
     where
-        showSrc : Source sk -> String
-        showSrc (Git x _)   = x
+        showSrc : Source Pinned -> String
+        showSrc (Git x h)   = "\{x} @ \{h}"
         showSrc (Local x) = x
         showSrc Legacy = "legacy"
 

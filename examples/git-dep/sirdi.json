@@ -3,7 +3,10 @@
 	"deps": [
 		{
 			"name": "example",
-			"git" : { "url": "https://github.com/eayus/idris2-example" }
+			"git" : {
+				"url": "https://github.com/eayus/idris2-example",
+				"commit": "cf7ba5874dfaf90a1c7feeae902caf4b9ec30e10"
+			}
 		}
 	],
 	"modules": [ "Nia" ],
