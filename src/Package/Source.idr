@@ -1,6 +1,7 @@
 ||| Types for specifying the source location (git, local, etc.) of a package.
 module Package.Source
 
+import Data.Hashable
 import Util
 
 
@@ -54,3 +55,20 @@ pinSource (Local fp)         = pure $ Local fp
 pinSource Legacy             = pure $ Legacy
 pinSource (Git url (Just x)) = pure $ Git url x
 pinSource (Git url Nothing)  = Git url <$> gitRemoteLatestCommit url
+
+
+||| Check whether a source is legacy
+export
+isLegacy : Source pk -> Bool
+isLegacy Legacy = True
+isLegacy _      = False
+
+
+||| Calculate a hash for a pinned source.
+export
+hashSource : Source IsPinned -> String
+hashSource (Git url commit) = show $ hash $ url ++ commit
+hashSource (Local filepath) = show $ hash filepath
+-- TODO: It doesn't really make sense to calculate a hash for a legacy source,
+-- perhaps this should be clear in the type of this function
+hashSource Legacy = ""

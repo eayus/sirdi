@@ -11,14 +11,14 @@ import Data.List
 
 
 ||| The directory where sirdi stores the source of a package
-(.sourceDir) : Identifier pin -> String
-(.sourceDir) ident = ".build/sources/\{pkgID ident}"
+(.sourceDir) : Identifier IsPinned -> String
+(.sourceDir) ident = ".build/sources/\{ident.asString}"
 
 ||| The directory where built dependency files are stored
-(.installDir) : Identifier pin -> String
-(.installDir) ident = ".build/deps/\{pkgID ident}"
+(.installDir) : Identifier IsPinned -> String
+(.installDir) ident = ".build/deps/\{ident.asString}"
 
-installDep : Identifier pin -> M ()
+installDep : Identifier IsPinned -> M ()
 installDep ident = do
     ignore $ createDir ident.installDir
     ignore $ system "cp -r \{ident.sourceDir}/build/ttc/* \{ident.installDir}/"
@@ -38,7 +38,7 @@ createBuildDirs = do
 
 ||| Loads a tree with configs of all dependencies, fetching them if necessary
 recipesFrom : Identifier IsPinned -> M (Tree Package)
-recipesFrom ident = case isLegacy ident of
+recipesFrom ident = case isLegacy ident.source of
     True => pure $ Node (ident, emptyConfig ident) []
     False => do
         unless !(exists ident.sourceDir) $ fetch ident
@@ -66,7 +66,7 @@ recipesFrom ident = case isLegacy ident of
 ||| Returns a list of idris packages to add to "depends" in order to properly
 ||| depend on this package.
 compile : Tree Package -> M (List String)
-compile (Node (ident, config) deps) = case (isLegacy ident) of
+compile (Node (ident, config) deps) = case (isLegacy ident.source) of
     True => pure [ config.pkgName ]
     False => do
         -- Build all dependencies first
@@ -91,7 +91,7 @@ compile (Node (ident, config) deps) = case (isLegacy ident) of
 
             installDep ident
 
-        pure $ pkgID ident :: depNames
+        pure $ ident.asString :: depNames
 
 
 makeDepTree : Identifier IsPinned -> M DepTree
@@ -123,7 +123,7 @@ build subPkgName = do
     ignore $ system "cp -r \{ident.sourceDir}/\{ident.name}.ipkg ./"
     ignore $ system "cp -r .build/deps ./depends"
     where
-        ensureRebuild : Identifier pin -> M ()
+        ensureRebuild : Identifier IsPinned -> M ()
         ensureRebuild ident = do
             ignore $ system "rm -rf \{ident.sourceDir}"
             ignore $ system "rm -rf \{ident.installDir}"
@@ -190,14 +190,14 @@ export
 prune : M ()
 prune = do
     multiConfig <- readConfig "."
-    let pkgs = map (\cfg => MkPkg {sk = MaybePinned} cfg.pkgName (Local ".")) multiConfig
+    let pkgs = map (\cfg => MkPkg {pk = MaybePinned} cfg.pkgName (Local ".")) multiConfig
 
     pkgs <- traverse pinIdentifier pkgs
 
     trees <- traverse makeDepTree pkgs
     let deps = concatMap treeToList trees
 
-    let validDirs = map pkgID deps
+    let validDirs = map (.asString) deps
 
     res <- listDir ".build/sources"
 

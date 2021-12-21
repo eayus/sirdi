@@ -7,36 +7,7 @@ import Data.List
 import Util
 import Data.Hashable
 import public Package.Source
-
-
-
-
-public export
-record Identifier (sk : PinKind) where
-    constructor MkPkg
-    name : String
-    source : Source sk
-
-export
-pinIdentifier : Identifier MaybePinned -> M (Identifier IsPinned)
-pinIdentifier ident = MkPkg ident.name <$> pinSource ident.source
-
-export
-isLegacy : Identifier sk -> Bool
-isLegacy (MkPkg _ Legacy) = True
-isLegacy _ = False
-
-hashSource : Source sk -> String
-hashSource (Git url _) = show $ hash url
-hashSource (Local fp) = show $ hash fp
-hashSource Legacy = ""
-
-export
-pkgID : Identifier sk -> String
-pkgID pkg = "\{pkg.name}\{hashSource pkg.source}"
-
-
-
+import public Package.Identifier
 
 public export
 record Config where
