@@ -13,6 +13,11 @@ import Package.Source
 import Package.Identifier
 
 
+-- We should abstract away the building/installation of a package into a
+-- separate module, and return a token type as a proof that the package
+-- has been installed.
+
+
 ||| The directory where sirdi stores the source of a package
 (.sourceDir) : Identifier IsPinned -> String
 (.sourceDir) ident = ".build/sources/\{ident.asString}"
@@ -29,7 +34,6 @@ installDep ident = do
 
 Package : Type
 Package = (Identifier IsPinned, Description)
--- Duplication betwen (name . fst) and  (name . snd)
 
 
 createBuildDirs : M ()
@@ -42,7 +46,7 @@ createBuildDirs = do
 ||| Loads a tree with configs of all dependencies, fetching them if necessary
 recipesFrom : Identifier IsPinned -> M (Tree Package)
 recipesFrom ident = case isLegacy ident.source of
-    True => pure $ Node (ident, emptyDescription ident) []
+    True => pure $ Node (ident, emptyDescription) []
     False => do
         unless !(exists ident.sourceDir) $ fetch ident
         multiDescription <- readDescription ident.sourceDir
@@ -70,7 +74,7 @@ recipesFrom ident = case isLegacy ident.source of
 ||| depend on this package.
 compile : Tree Package -> M (List String)
 compile (Node (ident, config) deps) = case (isLegacy ident.source) of
-    True => pure [ config.name ]
+    True => pure [ ident.name ]
     False => do
         -- Build all dependencies first
         depNames <- nub . join <$> traverse compile deps
@@ -105,8 +109,8 @@ makeDepTree ident = map @{Compose} fst $ recipesFrom ident
 getMain : Maybe String -> M Package
 getMain subPkgName = do
     multiDescription <- readDescription "."
-    config <- getSubDescription subPkgName multiDescription
-    let mainIdent = MkPkg config.name (Local ".")
+    (name, config) <- getSubDescription subPkgName multiDescription
+    let mainIdent = MkPkg name (Local ".")
     pure (mainIdent, config)
 
 
@@ -193,7 +197,7 @@ export
 prune : M ()
 prune = do
     multiDescription <- readDescription "."
-    let pkgs = map (\cfg => MkPkg {pk = MaybePinned} cfg.name (Local ".")) multiDescription
+    let pkgs = map (\(name, cfg) => MkPkg {pk = MaybePinned} name (Local ".")) multiDescription
 
     pkgs <- traverse pinIdentifier pkgs
 

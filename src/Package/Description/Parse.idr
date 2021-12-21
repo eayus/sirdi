@@ -73,7 +73,7 @@ pDescription s = case parse s of
             parsePassthru _ = Nothing
 
 
-            parseDescription : JSON -> P Description
+            parseDescription : JSON -> P (String, Description)
             parseDescription (JObject obj) = do
                 pkgName <- lookup' "name" obj >>= parseName
                 deps <- lookup' "deps" obj >>= parseDeps
@@ -88,7 +88,7 @@ pDescription s = case parse s of
                 let pthru = catMaybes . sequence $
                     (lookup "passthru" obj >>= parsePassthru)
 
-                pure $ MkDescription pkgName deps mods main pthru
+                pure $ (pkgName, MkDescription deps mods main pthru)
             parseDescription x = Left "Expected config object, instead got \{show x}"
 
             parseMultiDescription : JSON -> P MultiDescription
