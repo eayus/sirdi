@@ -21,4 +21,4 @@ clean:
 
 install: build
 	install build/exec/sirdi $(INSTALL_DIR)
-	install -d build/exec/sirdi_app/ $(INSTALL_DIR)
+	install build/exec/sirdi_app/* $(INSTALL_DIR)/sirdi_app
