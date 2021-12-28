@@ -32,9 +32,11 @@ pDescription s = case parse s of
             parseName : JSON -> P String
             parseName json = do
                 s <- getStr json
-                if length s > 0 && all isAlpha (unpack s)
-                   then pure s
-                   else Left "Invalid package name \{s}"
+                case unpack s of
+                    [] => Left "Expected package name, found empty string"
+                    h :: ts => if isAlpha h && all (\t => isAlphaNum t || t == '-') ts
+                        then pure s
+                        else Left "Invalid package name \{s}"
 
             parseGit : JSON -> P (URL, Maybe CommitHash)
             parseGit (JObject [("url", url), ("commit", ch)]) = pure (!(getStr url), Just !(getStr ch))
