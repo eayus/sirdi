@@ -12,12 +12,13 @@ record Description where
     deps : List (Identifier MaybePinned)
     modules : List String -- Need a better type for module names maybe?
     main : Maybe String
+    executable : Maybe String
     passthru : List (String, String)
 
 
 export
 emptyDescription : Description
-emptyDescription = MkDescription [] [] Nothing []
+emptyDescription = MkDescription [] [] Nothing Nothing []
 
 
 public export

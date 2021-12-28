@@ -84,11 +84,14 @@ pDescription s = case parse s of
                 -- JSON. Equally, if the key isn't present, then that should be fine too.
                 let main = parseMain <$> lookup "main" obj
                 main <- sequence main
+                exec <- case main of
+                        Nothing => pure Nothing
+                        Just _ => Just <$> (lookup' "executable" obj >>= getStr)
 
                 let pthru = catMaybes . sequence $
                     (lookup "passthru" obj >>= parsePassthru)
 
-                pure $ (pkgName, MkDescription deps mods main pthru)
+                pure $ (pkgName, MkDescription deps mods main exec pthru)
             parseDescription x = Left "Expected config object, instead got \{show x}"
 
             parseMultiDescription : JSON -> P MultiDescription

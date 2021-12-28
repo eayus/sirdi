@@ -87,7 +87,7 @@ compile (Node (ident, config) deps) = case (isLegacy ident.source) of
                 depends = depNames,
                 modules = config.modules,
                 main = config.main,
-                exec = "main" <$ config.main,
+                exec = config.executable,
                 passthru = config.passthru
             }
 
