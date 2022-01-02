@@ -1,0 +1,3 @@
+package sirdi_lib
+
+sourcedir = "src"
