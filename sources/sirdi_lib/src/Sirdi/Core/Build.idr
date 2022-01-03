@@ -24,11 +24,6 @@ BuiltDepsFor : Package Fetched ident -> Type
 BuiltDepsFor pkg = All (Package Built) (pkg.description.dependencies)
 
 
-export
-build : Initialised =>
-        (pkg : Package Fetched ident) ->
-        BuiltDepsFor pkg ->
-        IOEither BuildError (Package Built ident)
 
 
 doBuildCore : Ref Ctxt Defs
@@ -71,3 +66,12 @@ doBuild pkg deps = do
     dieOnLeft $ createDir $ show dir
 
     mapErr CompileError $ coreToIOEither $ doBuildCore' pkg deps
+
+
+export
+build : Initialised =>
+        (pkg : Package Fetched ident) ->
+        BuiltDepsFor pkg ->
+        IOEither BuildError (Package Built ident)
+build pkg deps = doBuild pkg deps $> coerceState pkg
+

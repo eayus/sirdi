@@ -1,21 +1,26 @@
 module Sirdi
 
-import Sirdi.Core.Interface
+import public Sirdi.Core
+import public Sirdi.Core.Init
+import public Sirdi.Core.Fetch
+import public Sirdi.Core.Build
+import public Util.IOEither
 import Util.All
 
 
+public export
 Self : Identifier
 Self = Local "."
 
 
+public export
 data RecBuildError : Type where
     FetchErr : (ident : Identifier) -> FetchError ident -> RecBuildError
     BuildErr : BuildError -> RecBuildError
 
 
 export
-recBuild : SirdiCore =>
-           Initialised =>
+recBuild : Initialised =>
            (ident : Identifier) ->
            IOEither RecBuildError (Package Built ident)
 recBuild ident = do

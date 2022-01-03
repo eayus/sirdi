@@ -40,3 +40,10 @@ dieOnLeft f = case !(f) of
 export
 coreToIOEither : Core a -> IOEither Error a
 coreToIOEither x = MkEitherT $ coreRun x (pure . Left) (pure . Right)
+
+
+export
+runIOE : IOEither e a -> (e -> IO b) -> (a -> IO b) -> IO b
+runIOE (MkEitherT x) f g = case !(x) of
+                                Left err => f err
+                                Right res => g res

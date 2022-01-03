@@ -1,7 +1,7 @@
 package sirdi_lib
 
-depends = sirdi_core, idris2, toml, contrib, hashable
+depends = idris2, toml, contrib, hashable
 
-modules = Sirdi, Util.All
+modules = Sirdi, Sirdi.Core, Sirdi.Core.Build, Sirdi.Core.Fetch, Sirdi.Core.Config, Sirdi.Core.Init, Util.All, Util.IOEither
 
 sourcedir = "src"

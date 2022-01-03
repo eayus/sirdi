@@ -1,0 +1,10 @@
+package sirdi_cli
+
+depends = sirdi_lib, idris2, toml, contrib, hashable,
+          sap
+
+sourcedir = "src"
+
+main = Main
+
+executable = sirdi

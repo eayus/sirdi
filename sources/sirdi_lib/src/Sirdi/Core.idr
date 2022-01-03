@@ -32,6 +32,10 @@ record Package (state : PackageState) (ident : Identifier) where
 (.identHash') = (.identHash)
 
 
+coerceState : Package state ident -> Package state' ident
+coerceState (MkPackage identHash desc) = MkPackage identHash desc
+
+
 export
 (.description) : Package state ident -> Description
 (.description) = (.desc)
