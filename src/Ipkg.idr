@@ -3,6 +3,7 @@ module Ipkg
 import Data.List
 import Data.String
 import System.File.ReadWrite
+import Version
 import Util
 
 
@@ -10,6 +11,7 @@ public export
 record Ipkg where
     constructor MkIpkg
     name : String
+    version : Maybe Version
     depends : List String
     modules : List String
     main : Maybe String
@@ -18,19 +20,18 @@ record Ipkg where
 
 
 Show Ipkg where
-    show p = let depends = if p.depends == [] then "" else "depends = \{concat $ intersperse ", " p.depends}"
-                 mains = case p.main of { Just s => "main = \{s}"; Nothing => "" }
-                 exec = case p.exec of { Just s => "executable = \{s}"; Nothing => "" }
+    show p = let depends = if p.depends == [] then Nothing else Just "depends = \{concat $ intersperse ", " p.depends}"
+                 version = p.version <&> \v => "version = \{show v}"
+                 mains = p.main <&> \s => "main = \{s}"
+                 exec = p.exec <&> \s => "executable = \{s}"
                  passthru = fastUnlines $ map (\(k, s) => "\{k} = \"\{s}\"" ) p.passthru
       in """
-package \{p.name}
-sourcedir = "src"
-modules = \{concat $ intersperse ", " p.modules}
-\{depends}
-\{mains}
-\{exec}
-\{passthru}
-"""
+         package \{p.name}
+         sourcedir = "src"
+         modules = \{concat $ intersperse ", " p.modules}
+         """
+         ++ "\n" ++ (unlines $ catMaybes [version, depends, mains, exec])
+         ++ passthru
 
 
 public export
