@@ -4,3 +4,5 @@ build/
 depends
 failures
 output
+
+.DS_Store
