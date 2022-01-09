@@ -5,6 +5,7 @@ import System.Directory
 import System.File
 import Ipkg
 import Util
+import Version
 import DepTree
 import Data.List
 import Package.Description
@@ -84,6 +85,7 @@ compile (Node (ident, config) deps) = case (isLegacy ident.source) of
             let fname = "\{ident.sourceDir}/\{ident.name}.ipkg"
             let ipkg = MkIpkg {
                 name = ident.name,
+                version = config.version,
                 depends = depNames,
                 modules = config.modules,
                 main = config.main,

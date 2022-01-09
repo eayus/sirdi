@@ -1,9 +1,11 @@
 module Package.Description.Parse
 
+import Data.Either
 import Package.Description
 import Language.JSON
 import Data.List
 import Util
+import Version
 import System.File.ReadWrite
 import Package.Source
 import Package.Identifier
@@ -37,6 +39,17 @@ pDescription s = case parse s of
                     h :: ts => if isAlpha h && all (\t => isAlphaNum t || t == '-') ts
                         then pure s
                         else Left "Invalid package name \{s}"
+
+            parseVersion : Maybe JSON -> P (Maybe Version)
+            parseVersion = traverse $
+                             \case JString str => parse str
+                                   _ => Left nonStringMsg
+                where
+                  nonStringMsg : String
+                  nonStringMsg = "Expected a semantic version string but found another JSON type"
+
+                  parse : String -> P Version
+                  parse = maybeToEither "Could not parse string to semantic version" . Version.parseVersion
 
             parseGit : JSON -> P (URL, Maybe CommitHash)
             parseGit (JObject [("url", url), ("commit", ch)]) = pure (!(getStr url), Just !(getStr ch))
@@ -78,6 +91,7 @@ pDescription s = case parse s of
             parseDescription : JSON -> P (String, Description)
             parseDescription (JObject obj) = do
                 pkgName <- lookup' "name" obj >>= parseName
+                version <- (Right $ lookup "version" obj) >>= parseVersion
                 deps <- lookup' "deps" obj >>= parseDeps
                 mods <- lookup' "modules" obj >>= parseMods
 
@@ -90,7 +104,7 @@ pDescription s = case parse s of
                 let pthru = catMaybes . sequence $
                     (lookup "passthru" obj >>= parsePassthru)
 
-                pure $ (pkgName, MkDescription deps mods main pthru)
+                pure $ (pkgName, MkDescription version deps mods main pthru)
             parseDescription x = Left "Expected config object, instead got \{show x}"
 
             parseMultiDescription : JSON -> P MultiDescription

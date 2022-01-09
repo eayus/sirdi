@@ -3,12 +3,14 @@ module Package.Description
 import Package.Identifier
 import Package.Source
 import Util
+import Version
 import Data.List
 
 
 public export
 record Description where
     constructor MkDescription
+    version : Maybe Version
     deps : List (Identifier MaybePinned)
     modules : List String -- Need a better type for module names maybe?
     main : Maybe String
@@ -17,7 +19,7 @@ record Description where
 
 export
 emptyDescription : Description
-emptyDescription = MkDescription [] [] Nothing []
+emptyDescription = MkDescription Nothing [] [] Nothing []
 
 
 public export
