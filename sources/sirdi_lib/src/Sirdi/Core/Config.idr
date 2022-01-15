@@ -3,6 +3,7 @@ module Sirdi.Core.Config
 import Sirdi.Core
 import Util.IOEither
 import Language.TOML
+import System.Path
 
 
 public export
@@ -11,8 +12,8 @@ data ConfigError : Type where
     ValidateError : String -> ConfigError
 
 
-processPath : Value -> Either String String
-processPath (VString x) = pure x
+processPath : Value -> Either String Path
+processPath (VString x) = pure $ parse x -- TODO: On next Idris version, parse to either
 processPath _ = Left "'path' should be a string"
 
 

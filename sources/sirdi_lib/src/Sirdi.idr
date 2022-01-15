@@ -5,12 +5,13 @@ import public Sirdi.Core.Init
 import public Sirdi.Core.Fetch
 import public Sirdi.Core.Build
 import public Util.IOEither
+import System.Path
 import Util.All
 
 
 public export
 Self : Identifier
-Self = Local "."
+Self = Local $ parse "."
 
 
 public export

@@ -21,6 +21,7 @@ init : IOEither InitError Initialised
 init = do
     unless !(exists configName) (throw NoConfigFile)
 
+    dieOnLeft $ createDir $ show sirdiDir
     dieOnLeft $ createDir $ show sourcesDir
     dieOnLeft $ createDir $ show outputsDir
 

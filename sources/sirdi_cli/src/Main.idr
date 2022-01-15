@@ -28,7 +28,7 @@ cmd : Command (IO ())
 cmd = Cmd {
     name = "sirdi",
     desc = "Idris2 Package manager CLI",
-    rhs = Basic [] [] (\opts => myBuild')
+    rhs = Basic [] [] (\[], [] => myBuild')
 }
 
 

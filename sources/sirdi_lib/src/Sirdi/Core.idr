@@ -5,8 +5,8 @@ import System.Path
 
 public export
 data Identifier : Type where
-    Local : (path : String) -> Identifier
-    Git : (url : String) -> (commit : String) -> (path : String) -> Identifier
+    Local : (path : Path) -> Identifier
+    Git : (url : String) -> (commit : String) -> (path : Path) -> Identifier
 
 
 public export

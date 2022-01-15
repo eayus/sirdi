@@ -6,12 +6,15 @@ import Core.Context
 import Data.List.Quantifiers
 import Util.IOEither
 import Util.All
-import Idris.ModTree
 import Compiler.Common
+import Idris.ModTree
 import Idris.Syntax
 import Idris.REPL.Opts
+import Idris.SetOptions
+import Idris.Package
 import System.Path
 import System.Directory
+import IdrisPaths
 
 
 public export
@@ -37,6 +40,13 @@ doBuildCore pkg deps = do
     -- Set the build dir
     setBuildDir $ show $ outputsDir /> pkg.identHash'
 
+    -- Where to look for legacy stuff
+    addPackageDir $ yprefix ++ "/idris2-0.5.1"
+
+    -- Load prelude and base
+    addPkgDir "base" anyBounds
+    addPkgDir "prelude" anyBounds
+
     -- Tell Idris where dependencies are
     _ <- traverseAll' (\dep => addExtraDir $ show $ outputsDir /> dep.identHash') deps
 
@@ -46,9 +56,11 @@ let toBuild = maybe (map snd (modules pkg))
                                                 (mainmod pkg)
                                                     buildAll toBuild-}
 
-    errs <- buildAll ?h1
+    let modules = [show $ (sourcesDir /> pkg.identHash') /> "Main.idr"]
+    errs <- buildAll modules
 
-    ?doBuildCore_rhs
+    coreLift $ putStrLn "Build errors:"
+    coreLift $ print errs
 
 
 doBuildCore' : (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> Core ()
@@ -62,6 +74,8 @@ doBuildCore' pkg deps = do
 
 doBuild : (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> IOEither BuildError ()
 doBuild pkg deps = do
+    putStrLn "Beginning build..."
+
     let dir = outputsDir /> pkg.identHash'
     dieOnLeft $ createDir $ show dir
 
