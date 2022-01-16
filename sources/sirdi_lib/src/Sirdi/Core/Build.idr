@@ -36,15 +36,12 @@ doBuildCore : Ref Ctxt Defs
            => Ref ROpts REPLOpts
            => (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> Core ()
 doBuildCore pkg deps = do
-
-
     -- Set the source dir
     setSourceDir $ Just $ show $ sourcesDir /> pkg.identHash'
 
     -- Set the build dir
     let buildDir = show $ outputsDir /> pkg.identHash'
     setBuildDir buildDir
-    coreLift $ putStrLn "Build dir: \{buildDir}"
 
     -- Where to look for legacy stuff
     addPackageDir $ yprefix ++ "/idris2-0.5.1"
@@ -56,16 +53,10 @@ doBuildCore pkg deps = do
     -- Tell Idris where dependencies are
     _ <- traverseAll' (\dep => addExtraDir $ show $ (outputsDir /> dep.identHash') /> "ttc") deps
 
-    dirs <- getDirs
-    coreLift $ putStrLn $ toString dirs
-
     Just contents <- coreLift $ run "find \{show $ sourcesDir /> pkg.identHash'} -type f -name \"*.idr\""
         | Nothing => coreLift $ die "Failed to execute tree"
 
     let modules = lines contents
-
-    coreLift $ putStrLn "modules:"
-    coreLift $ print modules
 
     errs <- buildAll modules
 
