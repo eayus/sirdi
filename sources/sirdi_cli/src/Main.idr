@@ -30,6 +30,10 @@ Show RecBuildError where
     show (BuildErr (CompileError x)) = "Compilation error\n\{show x}"
 
 
+Show NewProjectError where
+    show (CreateDirError x) = "Create dir error: \{x}"
+
+
 myBuild : IOEither String ()
 myBuild = do
     x <- mapErr show $ init
@@ -44,7 +48,18 @@ cmd : Command (IO ())
 cmd = Cmd {
     name = "sirdi",
     desc = "Idris2 Package manager CLI",
-    rhs = Basic [] [] (\[], [] => myBuild')
+    rhs = SubCmds [
+        Cmd {
+            name = "build",
+            desc = "Builds the current project",
+            rhs = Basic [] [] (\[], [] => myBuild')
+        },
+        Cmd {
+            name = "new",
+            desc = "Creates a new project",
+            rhs = Basic ["name" # String] [] (\[name], [] => runIOE (new name) print pure)
+        }
+    ]
 }
 
 

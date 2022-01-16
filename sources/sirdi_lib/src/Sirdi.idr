@@ -5,6 +5,7 @@ import public Sirdi.Core.Init
 import public Sirdi.Core.Fetch
 import public Sirdi.Core.Build
 import public Sirdi.Core.Config
+import public Sirdi.Core.New
 import public Util.IOEither
 import System.Path
 import Util.All

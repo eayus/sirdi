@@ -12,6 +12,7 @@ data Identifier : Type where
 public export
 record Description where
     constructor MkDescription
+    main : Maybe String
     dependencies : List Identifier
 
 

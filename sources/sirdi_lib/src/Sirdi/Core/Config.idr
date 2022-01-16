@@ -54,10 +54,18 @@ processDependencies (VArray x) = traverse processDependency x
 processDependencies _ = Left "Dependencies should be specified as an array"
 
 
+processMain : Maybe Value -> Either String (Maybe String)
+processMain Nothing = pure Nothing
+processMain (Just (VString x)) = pure $ Just x
+processMain (Just _) = Left "'main' should be specified as a string"
+
+
 processTOML : Table -> Either String Description
 processTOML x with (lookup "dependencies" x)
-  _ | Just deps = pure $ MkDescription { dependencies = !(processDependencies deps) }
   _ | Nothing = Left "'dependencies' is a required top level field"
+  _ | Just deps = pure $ MkDescription {
+          main = !(processMain $ lookup "main" x),
+          dependencies = !(processDependencies deps) }
 
 
 export
