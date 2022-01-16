@@ -3,14 +3,30 @@ module Main
 import Sap
 import Sirdi
 import Core.Core
+import System.Path
+import Language.TOML
 
 
 Show InitError where
     show NoConfigFile = "No config file in current directory found!"
 
 
+Show ConfigError where
+    show (TOMLError x) = "TOML Error: \{show x}"
+    show (ValidateError x) = "Validation error: \{x}"
+
+
+Show (FetchError ident) where
+    show (BadGitRepo badURL) = "Bad git repo \{badURL}"
+    show (BadGitCommit badCommit) = "Bad git commit \{badCommit}"
+    show (BadGitPath badPath) = "Bad git path \{show badPath}"
+    show (BadLocalPath badPath) = "Bad local path \{show badPath}"
+    show NoConfigFile = "No config file"
+    show (BadConfig x) = "Bad config \{show x}"
+
+
 Show RecBuildError where
-    show (FetchErr ident x) = "Fetch error for something.."
+    show (FetchErr ident x) = "Fetch error:\n\{show x}"
     show (BuildErr (CompileError x)) = "Compilation error\n\{show x}"
 
 

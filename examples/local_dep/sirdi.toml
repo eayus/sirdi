@@ -1,0 +1,6 @@
+# [[dependencies]]
+# type = "local"
+# path = "../simple"
+
+
+dependencies = [ { type = "local", path = "../simple" } ]

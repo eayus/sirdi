@@ -34,11 +34,15 @@ doBuildCore : Ref Ctxt Defs
            => Ref ROpts REPLOpts
            => (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> Core ()
 doBuildCore pkg deps = do
+
+
     -- Set the source dir
     setSourceDir $ Just $ show $ sourcesDir /> pkg.identHash'
 
     -- Set the build dir
-    setBuildDir $ show $ outputsDir /> pkg.identHash'
+    let buildDir = show $ outputsDir /> pkg.identHash'
+    setBuildDir buildDir
+    coreLift $ putStrLn "Build dir: \{buildDir}"
 
     -- Where to look for legacy stuff
     addPackageDir $ yprefix ++ "/idris2-0.5.1"
@@ -48,15 +52,13 @@ doBuildCore pkg deps = do
     addPkgDir "prelude" anyBounds
 
     -- Tell Idris where dependencies are
-    _ <- traverseAll' (\dep => addExtraDir $ show $ outputsDir /> dep.identHash') deps
+    _ <- traverseAll' (\dep => addExtraDir $ show $ (outputsDir /> dep.identHash') /> "ttc") deps
 
-{-
-let toBuild = maybe (map snd (modules pkg))
-                        (\m => snd m :: map snd (modules pkg))
-                                                (mainmod pkg)
-                                                    buildAll toBuild-}
+    dirs <- getDirs
+    coreLift $ putStrLn $ toString dirs
 
-    let modules = [show $ (sourcesDir /> pkg.identHash') /> "Main.idr"]
+    let modules = [show $ (sourcesDir /> pkg.identHash') /> "Main.idr",
+                   show $ (sourcesDir /> pkg.identHash') /> "Simple.idr"]
     errs <- buildAll modules
 
     coreLift $ putStrLn "Build errors:"
