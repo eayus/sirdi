@@ -3,9 +3,11 @@ module Sirdi.Core.Build
 import Sirdi.Core
 import Sirdi.Core.Init
 import Core.Context
+import Data.String
 import Data.List.Quantifiers
 import Util.IOEither
 import Util.All
+import Util.Files
 import Compiler.Common
 import Idris.ModTree
 import Idris.Syntax
@@ -57,8 +59,14 @@ doBuildCore pkg deps = do
     dirs <- getDirs
     coreLift $ putStrLn $ toString dirs
 
-    let modules = [show $ (sourcesDir /> pkg.identHash') /> "Main.idr",
-                   show $ (sourcesDir /> pkg.identHash') /> "Simple.idr"]
+    Just contents <- coreLift $ run "find \{show $ sourcesDir /> pkg.identHash'} -type f -name \"*.idr\""
+        | Nothing => coreLift $ die "Failed to execute tree"
+
+    let modules = lines contents
+
+    coreLift $ putStrLn "modules:"
+    coreLift $ print modules
+
     errs <- buildAll modules
 
     coreLift $ putStrLn "Build errors:"
