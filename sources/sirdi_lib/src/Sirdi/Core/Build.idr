@@ -75,12 +75,11 @@ doBuildCore' pkg deps = do
 
 doBuild : (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> IOEither BuildError ()
 doBuild pkg deps = do
-    putStrLn "Beginning build..."
-
     let dir = outputsDir /> pkg.identHash'
-    dieOnLeft $ createDir $ show dir
 
-    mapErr CompileError $ coreToIOEither $ doBuildCore' pkg deps
+    unless !(exists $ show dir) (do
+        dieOnLeft $ createDir $ show dir
+        mapErr CompileError $ coreToIOEither $ doBuildCore' pkg deps)
 
 
 export

@@ -27,7 +27,10 @@ embed = MkEitherT
 
 export
 die : HasIO io => Show e => e -> io a
-die x = do print x; exitFailure
+die x = do
+    putStrLn "Dying with unexpected error:"
+    print x
+    exitFailure
 
 
 export
