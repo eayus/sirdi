@@ -21,6 +21,8 @@ import Idris.REPL
 import System.Path
 import System.Directory
 import IdrisPaths
+import Idris.Version
+import Idris.Env
 
 
 public export
@@ -41,11 +43,25 @@ doBuildCore : Ref Ctxt Defs
            => (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> Core ()
 doBuildCore pkg deps = do
     -- Set the source dir
-    setSourceDir $ Just $ show $ sourcesDir /> pkg.identHash'
+    --setSourceDir $ Just $ show $ sourcesDir /> pkg.identHash'
+    --ignore $ coreLift $ changeDir $ show $ sourcesDir /> pkg.identHash'
+    setSourceDir $ Just $ ".sirdi/sources/\{pkg.identHash'}"
+
+    bprefix <- coreLift $ idrisGetEnv "IDRIS2_PREFIX"
+    setPrefix (fromMaybe yprefix bprefix)
 
     -- Set the build dir
-    let buildDir = show $ outputsDir /> pkg.identHash'
+    --let buildDir = show $ outputsDir /> pkg.identHash'
+    let buildDir = ".sirdi/outputs/\{pkg.identHash'}"
+    
     setBuildDir buildDir
+
+    defs <- get Ctxt
+    addDataDir (prefix_dir (dirs (options defs)) </>
+                        ("idris2-" ++ showVersion False version) </> "support")
+
+    addLibDir (prefix_dir (dirs (options defs)) </>
+                        ("idris2-" ++ showVersion False version) </> "lib")
 
     -- Where to look for legacy stuff
     addPackageDir $ yprefix ++ "/idris2-0.5.1"
@@ -60,7 +76,13 @@ doBuildCore pkg deps = do
     Just contents <- coreLift $ run "find \{show $ sourcesDir /> pkg.identHash'} -type f -name \"*.idr\""
         | Nothing => coreLift $ die "Failed to execute tree"
 
-    let modules = lines contents
+
+
+    --let modules = lines contents
+    let modules = [".sirdi/sources/243524030622356258/Simple.idr"]
+    coreLift $ print modules
+    --let x = nsToSRc "Simple" -- ".sirdi/sources/\{pkg.identHash'}/Simple.idr"
+    --let modules = [x]
 
     errs <- buildAll modules
 
@@ -70,14 +92,16 @@ doBuildCore pkg deps = do
 
     case pkg.description.main of
          Just mainMod => do
-            modIdent <- ctxtPathToNS mainMod
-            m <- newRef MD (initMetadata (PhysicalIdrSrc modIdent))
+            let mainString = ".sirdi/sources/\{pkg.identHash'}/Simple.idr"
+            modIdent <- ctxtPathToNS mainString
+
+            m <- newRef MD (initMetadata (PhysicalIdrSrc $ mkModuleIdent Nothing "Simple"))
             u <- newRef UST initUState
 
             let mainName = NS (miAsNamespace modIdent) (UN $ Basic "main")
             let executableName = "main"
 
-            ignore $ loadMainFile mainMod
+            ignore $ loadMainFile mainString
             ignore $ compileExp (PRef replFC mainName) executableName
          Nothing => pure ()
 
