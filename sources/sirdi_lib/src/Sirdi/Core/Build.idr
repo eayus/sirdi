@@ -2,7 +2,10 @@ module Sirdi.Core.Build
 
 import Sirdi.Core
 import Sirdi.Core.Init
+import Core.Directory
 import Core.Context
+import Core.Metadata
+import Core.UnifyState
 import Data.String
 import Data.List.Quantifiers
 import Util.IOEither
@@ -14,6 +17,7 @@ import Idris.Syntax
 import Idris.REPL.Opts
 import Idris.SetOptions
 import Idris.Package
+import Idris.REPL
 import System.Path
 import System.Directory
 import IdrisPaths
@@ -62,6 +66,20 @@ doBuildCore pkg deps = do
 
     coreLift $ putStrLn "Build errors:"
     coreLift $ print errs
+
+
+    case pkg.description.main of
+         Just mainMod => do
+            modIdent <- ctxtPathToNS mainMod
+            m <- newRef MD (initMetadata (PhysicalIdrSrc modIdent))
+            u <- newRef UST initUState
+
+            let mainName = NS (miAsNamespace modIdent) (UN $ Basic "main")
+            let executableName = "main"
+
+            ignore $ loadMainFile mainMod
+            ignore $ compileExp (PRef replFC mainName) executableName
+         Nothing => pure ()
 
 
 doBuildCore' : (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> Core ()
