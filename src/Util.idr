@@ -1,7 +1,9 @@
 module Util
 
 import System
+import System.File
 import Data.List
+import Data.SnocList
 
 public export
 URL, FilePath : Type
@@ -62,7 +64,6 @@ mSystem command onErr = do
          0 => pure ()
          _ => mErr onErr
 
-
 export
 mRun : (command : String) -> M String
 mRun command = do
@@ -70,6 +71,27 @@ mRun command = do
     case n of
          0 => pure out
          _ => mErr "Running \{show command} failed with error \{show out}"
+  where
+    fRead : (h : File) -> M (Either FileError String)
+    fRead h = fRead' h [<]
+      where
+        fRead' : (h : File) -> (acc : SnocList String) -> M (Either FileError String)
+        fRead' h acc = do
+          if !(fEOF h)
+             then pure $ Right $ concat acc
+             else do
+                 Right line <- fGetLine h
+                    | Left err => pure $ Left err
+                 fRead' h $ acc :< line
+    
+    run : (cmd : String) -> M (String, Int)
+    run cmd = do
+        Right f <- popen cmd Read
+            | Left mErr => pure ("", 1)
+        Right resp <- fRead f
+            | Left err => pure ("", 1)
+        pclose {io = M} f
+        pure (resp, 0)
 
 export
 nubOn : Eq b => (a -> b) -> List a -> List a
