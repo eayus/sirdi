@@ -44,6 +44,16 @@ myBuild' : IO ()
 myBuild' = runIOE myBuild putStrLn pure
 
 
+myRun' : IOEither String ()
+myRun' = do
+    initialised <- mapErr show $ init
+    ignore $ mapErr show $ buildAndRun Self
+
+
+myRun : IO ()
+myRun = runIOE myRun' putStrLn pure
+
+
 cmd : Command (IO ())
 cmd = Cmd {
     name = "sirdi",
@@ -53,6 +63,11 @@ cmd = Cmd {
             name = "build",
             desc = "Builds the current project",
             rhs = Basic [] [] (\[], [] => myBuild')
+        },
+        Cmd {
+            name = "run",
+            desc = "Builds and runs the current project",
+            rhs = Basic [] [] (\[], [] => myRun)
         },
         Cmd {
             name = "new",

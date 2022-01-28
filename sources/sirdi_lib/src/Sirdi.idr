@@ -6,6 +6,7 @@ import public Sirdi.Core.Fetch
 import public Sirdi.Core.Build
 import public Sirdi.Core.Config
 import public Sirdi.Core.New
+import public Sirdi.Core.Run
 import public Util.IOEither
 import System.Path
 import Util.All
@@ -23,10 +24,15 @@ data RecBuildError : Type where
 
 
 export
-recBuild : Initialised =>
-           (ident : Identifier) ->
-           IOEither RecBuildError (Package Built ident)
+recBuild : Initialised
+        => (ident : Identifier)
+        -> IOEither RecBuildError (Package Built ident)
 recBuild ident = do
     pkg <- mapErr (FetchErr ident) (fetch ident)
     deps <- mapM recBuild pkg.description.dependencies
     mapErr BuildErr $ build pkg deps
+
+
+export
+buildAndRun : Initialised => (ident : Identifier) -> IOEither RecBuildError Int
+buildAndRun ident = recBuild ident >>= run
