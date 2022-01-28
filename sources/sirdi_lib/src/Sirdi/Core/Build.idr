@@ -42,19 +42,14 @@ doBuildCore : Ref Ctxt Defs
            => Ref ROpts REPLOpts
            => (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> Core ()
 doBuildCore pkg deps = do
-    -- Set the source dir
-    --setSourceDir $ Just $ show $ sourcesDir /> pkg.identHash'
-    --ignore $ coreLift $ changeDir $ show $ sourcesDir /> pkg.identHash'
-    setSourceDir $ Just $ ".sirdi/sources/\{pkg.identHash'}"
-
     bprefix <- coreLift $ idrisGetEnv "IDRIS2_PREFIX"
     setPrefix (fromMaybe yprefix bprefix)
 
+    -- Set the source dir
+    setSourceDir $ Just $ show $ sourcesDir /> pkg.identHash'
+
     -- Set the build dir
-    --let buildDir = show $ outputsDir /> pkg.identHash'
-    let buildDir = ".sirdi/outputs/\{pkg.identHash'}"
-    
-    setBuildDir buildDir
+    setBuildDir $ show $ outputsDir /> pkg.identHash'
 
     defs <- get Ctxt
     addDataDir (prefix_dir (dirs (options defs)) </>
@@ -78,12 +73,7 @@ doBuildCore pkg deps = do
 
 
 
-    --let modules = lines contents
-    let modules = [".sirdi/sources/243524030622356258/Simple.idr"]
-    coreLift $ print modules
-    --let x = nsToSRc "Simple" -- ".sirdi/sources/\{pkg.identHash'}/Simple.idr"
-    --let modules = [x]
-
+    let modules = lines contents
     errs <- buildAll modules
 
     coreLift $ putStrLn "Build errors:"
@@ -92,17 +82,18 @@ doBuildCore pkg deps = do
 
     case pkg.description.main of
          Just mainMod => do
-            let mainString = ".sirdi/sources/\{pkg.identHash'}/Simple.idr"
-            modIdent <- ctxtPathToNS mainString
+            let mainNS = mkNamespace mainMod
+            let mainMI = nsAsModuleIdent mainNS
+            mainSrc <- nsToSource EmptyFC mainMI
 
-            m <- newRef MD (initMetadata (PhysicalIdrSrc $ mkModuleIdent Nothing "Simple"))
+            m <- newRef MD (initMetadata (PhysicalIdrSrc mainMI))
             u <- newRef UST initUState
 
-            let mainName = NS (miAsNamespace modIdent) (UN $ Basic "main")
+            let entryPoint = NS mainNS (UN $ Basic "main")
             let executableName = "main"
 
-            ignore $ loadMainFile mainString
-            ignore $ compileExp (PRef replFC mainName) executableName
+            ignore $ loadMainFile mainSrc
+            ignore $ compileExp (PRef replFC entryPoint) executableName
          Nothing => pure ()
 
 
@@ -125,9 +116,9 @@ doBuild pkg deps = do
 
 
 export
-build : Initialised =>
-        (pkg : Package Fetched ident) ->
-        BuiltDepsFor pkg ->
-        IOEither BuildError (Package Built ident)
+build : Initialised
+     => (pkg : Package Fetched ident)
+     -> BuiltDepsFor pkg
+     -> IOEither BuildError (Package Built ident)
 build pkg deps = doBuild pkg deps $> coerceState pkg
 

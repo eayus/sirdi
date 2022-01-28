@@ -45,7 +45,7 @@ export
 -- Internal directories
 
 sirdiDir : Path
-sirdiDir = parse "." /> ".sirdi"
+sirdiDir = parse ".sirdi"
 
 sourcesDir : Path
 sourcesDir = sirdiDir /> "sources"

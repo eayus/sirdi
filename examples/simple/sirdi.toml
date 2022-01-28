@@ -1,2 +1,2 @@
 dependencies = []
-main = "Simple.idr"
+main = "Simple"
