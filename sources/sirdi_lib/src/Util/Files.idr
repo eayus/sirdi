@@ -2,7 +2,7 @@ module Util.Files
 
 import System.File.Process
 import System.File.ReadWrite
-
+import System
 
 readLinesOnto : HasIO io => (acc : List String) ->
                             (offset : Nat) ->
@@ -28,3 +28,4 @@ run cmd = do
         | Left err => pure Nothing
 
     pure (Just $ fastConcat lines)
+

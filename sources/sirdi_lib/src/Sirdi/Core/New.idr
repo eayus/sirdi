@@ -8,18 +8,18 @@ import Util.IOEither
 
 defaultDesc : String
 defaultDesc = """
-main = "Main"
-dependencies = []
-"""
+    main = "Main"
+    dependencies = []
+    """
 
 
 defaultMain : String
 defaultMain = """
-module Main
+    module Main
 
-main : IO ()
-main = putStrLn "Hello, world!"
-"""
+    main : IO ()
+    main = putStrLn "Hello, world!"
+    """
 
 
 public export

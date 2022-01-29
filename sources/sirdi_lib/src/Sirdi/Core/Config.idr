@@ -4,12 +4,16 @@ import Sirdi.Core
 import Util.IOEither
 import Language.TOML
 import System.Path
-
+import Core.Core
 
 public export
-data ConfigError : Type where
-    TOMLError : TOML.Error -> ConfigError
-    ValidateError : String -> ConfigError
+data TOMLError : Type where
+
+    -- TOML could not be parsed
+    ParseError : TOML.Error -> TOMLError
+
+    -- TOML does not have the correct format
+    ValidateError : String -> TOMLError
 
 
 processPath : Value -> Either String Path
@@ -32,7 +36,7 @@ processGitDependency x with (lookup "url" x, lookup "commit" x, lookup "path" x)
         processCommit (VString x) = pure x
         processCommit _ = Left "'commit' should be a string"
 
-        
+
 processLocalDependency : Table -> Either String Identifier
 processLocalDependency x with (lookup "path" x)
   _ | Nothing = Left "'path' is a required field of a local dependency"
@@ -67,9 +71,8 @@ processTOML x with (lookup "dependencies" x)
           main = !(processMain $ lookup "main" x),
           dependencies = !(processDependencies deps) }
 
-
 export
-parseDesc : String -> Either ConfigError Description
+parseDesc : String -> Either TOMLError Description
 parseDesc s = do
-    tbl <- bimap TOMLError id $ parseTOML s
-    bimap ValidateError id $ processTOML tbl
+    tbl <- mapFst ParseError $ parseTOML s
+    mapFst ValidateError $ processTOML tbl
