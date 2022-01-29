@@ -3,73 +3,67 @@ module Sirdi.Core.Config
 import Sirdi.Core
 import Util.IOEither
 import Language.TOML
+import Language.TOML.Processing
 import System.Path
+import Data.List.Elem
 
 
 public export
 data ConfigError : Type where
     TOMLError : TOML.Error -> ConfigError
-    ValidateError : String -> ConfigError
+    ValidateError : TableError -> ConfigError
 
 
-processPath : Value -> Either String Path
-processPath (VString x) = pure $ parse x -- TODO: On next Idris version, parse to either
-processPath _ = Left "'path' should be a string"
+GitOpts : TableTy
+GitOpts = MkFieldTy { name = "url", optional = False, ty = TString }
+    `And` MkFieldTy { name = "commit", optional = False, ty = TString }
+    `And` MkFieldTy { name = "path", optional = False, ty = TString }
+    `And` Emp
 
 
-processGitDependency : Table -> Either String Identifier
-processGitDependency x with (lookup "url" x, lookup "commit" x, lookup "path" x)
-  _ | (Nothing, _, _) = Left "'url' is a required field of a git dependency"
-  _ | (_, Nothing, _) = Left "'commit' is a required field of a git dependency"
-  _ | (_, _, Nothing) = Left "'path' is a required field of a git dependency"
-  _ | (Just url, Just commit, Just path) = pure $ Git !(processURL url) !(processCommit commit) !(processPath path)
-    where
-        processURL : Value -> Either String String
-        processURL (VString x) = pure x
-        processURL _ = Left "'url' should be a string"
-
-        processCommit : Value -> Either String String
-        processCommit (VString x) = pure x
-        processCommit _ = Left "'commit' should be a string"
-
-        
-processLocalDependency : Table -> Either String Identifier
-processLocalDependency x with (lookup "path" x)
-  _ | Nothing = Left "'path' is a required field of a local dependency"
-  _ | Just path = Local <$> processPath path
+LocalOpts : TableTy
+LocalOpts = MkFieldTy { name = "path", optional = False, ty = TString } `And` Emp
 
 
-processDependency : Value -> Either String Identifier
-processDependency (VTable x) with (lookup "type" x)
-  _ | Just (VString "git") = processGitDependency x
-  _ | Just (VString "local") = processLocalDependency x
-  _ | Just (VString type) = Left "Invalid dependency type '\{type}'"
-  _ | Just _ = Left "Dependency 'type' must be a string"
-  _ | Nothing = Left "Dependencies must specify a 'type'"
-processDependency _ = Left "Individual dependencies should be specified as a table"
+DepTy : TableTy
+DepTy = MkFieldTy { name = "type", optional = False, ty = TEnum ["git", "local"] }
+  `Ext` \case
+          ("git" ** Here)         => GitOpts
+          ("local" ** There Here) => LocalOpts
+          (x ** There (There y)) impossible
 
 
-processDependencies : Value -> Either String (List Identifier)
-processDependencies (VArray x) = traverse processDependency x
-processDependencies _ = Left "Dependencies should be specified as an array"
+ConfigTy : TableTy
+ConfigTy = MkFieldTy { name = "dependencies", optional = False, ty = TArray (TTable DepTy) }
+     `And` MkFieldTy { name = "main", optional = True, ty = TString }
+     `And` Emp
 
 
-processMain : Maybe Value -> Either String (Maybe String)
-processMain Nothing = pure Nothing
-processMain (Just (VString x)) = pure $ Just x
-processMain (Just _) = Left "'main' should be specified as a string"
+toGit : TableOf GitOpts -> Identifier
+toGit [url, commit, path] = Git url commit (parse path)
 
 
-processTOML : Table -> Either String Description
-processTOML x with (lookup "dependencies" x)
-  _ | Nothing = Left "'dependencies' is a required top level field"
-  _ | Just deps = pure $ MkDescription {
-          main = !(processMain $ lookup "main" x),
-          dependencies = !(processDependencies deps) }
+toLocal : TableOf LocalOpts -> Identifier
+toLocal [path] = Local (parse path) -- In future, parse into an either
+
+
+toIdent : ValueOf (TTable DepTy) -> Identifier
+toIdent (("git" ** Here)           :: opts) = toGit opts
+toIdent (("local" ** (There Here)) :: opts) = toLocal opts
+-- When this Idris bug has been fiexed, we can remove this.
+toIdent _ = assert_total $ idris_crash "Impossible case toIdent" 
+
+
+toDesc : TableOf ConfigTy -> Description
+toDesc [dependencies, main] =
+    MkDescription {
+        main = main,
+        dependencies = map toIdent dependencies
+    }
 
 
 export
 parseDesc : String -> Either ConfigError Description
 parseDesc s = do
     tbl <- bimap TOMLError id $ parseTOML s
-    bimap ValidateError id $ processTOML tbl
+    toDesc <$> (bimap ValidateError id $ processTable ConfigTy tbl)
