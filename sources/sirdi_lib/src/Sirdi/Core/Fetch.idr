@@ -41,7 +41,8 @@ data FetchError : Identifier -> Type where
     -- Neither TOML nor IPKG could be parsed correctly
     NoValidConfigFile : TOMLError -> Core.Error -> FetchError ident
 
-readConfigFile : String -> IOEither (FetchError ident) String
+||| Extract the content of a file that think is a config file
+readConfigFile : (filename : String) -> IOEither (FetchError ident) String
 readConfigFile filename =
     case !(readFile filename) of
         Left FileNotFound => throw (NoConfigFile filename)
@@ -54,6 +55,7 @@ readConfigFile filename =
 pkgToDesc : PkgDesc -> Description
 pkgToDesc pkg = MkDescription (snd <$> mainmod pkg) []
 
+||| Attempt to parse the given file as an ipkg
 parseipkg : String -> IOEither Core.Error Description
 parseipkg path = do
 
@@ -70,29 +72,39 @@ parseipkg path = do
 
     pure (pkgToDesc parsed)
 
-export
-fetch : Initialised => (ident : Identifier) -> IOEither (FetchError ident) (Package Fetched ident)
-fetch (Local path) = do
-    let identHash = show $ hash "local-\{show path}"
-    let destDir = sourcesDir /> identHash
-
-
+configFilePackage : Path -> String -> IOEither (FetchError ident) (Package Fetched ident)
+configFilePackage path identHash = do
     let cfgFile = path /> configName
 
     contents <- readConfigFile (show cfgFile)
 
-    ignore $ system "cp -r \{show path}/src \{show destDir}/"
-
-    desc <- MkEitherT $ pure $ bimap BadTOML id $ parseDesc contents
+    desc <- mapErr BadTOML $ fromEither $ parseDesc contents
 
     pure $ MkPackage { desc = desc, identHash = identHash }
 
 
+||| Copy a local dependency to the source directory and extract the TOML information from it
+export
+fetch : Initialised => (ident : Identifier) -> IOEither (FetchError ident) (Package Fetched ident)
+fetch (Local path) = do
+
+    let identHash = show $ hash "local-\{show path}"
+    let destDir = sourcesDir /> identHash
+
+    ignore $ system "cp -r \{show path}/src \{show destDir}/"
+
+    configFilePackage path identHash
+
+
 fetch (Git url commit path) = do
+    -- The hash that identifies this package
     let identHash = show $ hash "git-\{commit}"
+    -- The destination folder where all the sources live
+    let destDir = sourcesDir /> identHash
+
     Just current <- map parse <$> currentDir
       | Nothing => die "could not get current dir"
-    putStrLn "currentDir : \{current}"
+    putStrLn "currentDir : \{show current}"
     -- clone to a temporary repo
     removeDir "/tmp/sirdi"
     unless !(exists "/tmp/sirdi")
@@ -103,27 +115,10 @@ fetch (Git url commit path) = do
     ignore $ changeDir "/tmp/sirdi/\{identHash}"
     Git.checkout commit
 
-    -- copy the temp directory into the current director
+    -- copy the temp directory into the sources directory
     ignore $ changeDir (show current)
-    ignore $ copyDir (parse "/tmp/sirdi/\{identHash}") (parse ".sirdi/sources")
+    ignore $ copyDir (parse "/tmp/sirdi/\{identHash}" `appendPath` path) destDir
     ignore $ removeDir "/tmp/sirdi/\{identHash}"
 
-    -- making the package by creating a hash and parsing the config file
-    -- if the config file cannot be parsed as a TOML file, the file is
-    -- parsed as a ipkg file, note that ipkg files cannot have dependencies themselves
-
-    ignore $ changeDir $ show (current /> identHash)
-    printLn (current /> identHash)
-    Just c <- currentDir
-      | Nothing => die "could not get current dir"
-    putStrLn "currentDir : \{c}"
-    contents <- readConfigFile $ show (current /> (identHash </> path))
-    ignore $ changeDir ".."
-
-    -- Attempt to parse as TOML first, if that fails, attempt to parse as IPKG, if both
-    -- fail, collect both errors in `NoValidConfigFile` so that we can report them
-    desc <- either (\err => mapErr (NoValidConfigFile err) (parseipkg contents))
-                   (MkEitherT . pure . Right)
-                   (parseDesc contents)
-
-    pure $ MkPackage { desc = desc, identHash = identHash }
+    -- find and read the TOML file
+    configFilePackage path identHash
