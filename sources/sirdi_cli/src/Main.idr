@@ -14,7 +14,8 @@ onBuild = runIOE_ putStrLn $ do
 onRun : IO ()
 onRun = runIOE_ putStrLn $ do
     initialised <- mapErr show $ init
-    ignore $ mapErr show $ buildAndRun Self
+    pkg <- mapErr show $ recBuild Self
+    ignore $ mapErr show $ run pkg
     -- TODO: propogate the program's exit code
 
 

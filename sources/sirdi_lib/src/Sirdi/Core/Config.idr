@@ -15,7 +15,7 @@ data TOMLError : Type where
     ParseError : TOML.Error -> TOMLError
 
     -- TOML does not have the correct format
-    ValidateError : String -> TOMLError
+    ValidateError : TableError -> TOMLError
 
 
 GitOpts : TableTy

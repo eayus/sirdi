@@ -41,7 +41,7 @@ mutual
 public export
 Show TOMLError where
     show (ParseError x) = "Parse Error: \{show x}"
-    show (ValidateError x) = "Validation error: \{x}"
+    show (ValidateError x) = "Validation error: \{show x}"
 
 
 public export
@@ -65,3 +65,7 @@ public export
 Show NewProjectError where
     show (CreateDirError x) = "Create dir error: \{x}"
 
+
+public export
+Show (RunError pkg) where
+    show NoMainSpecified = "Cannot run since no 'main' is given in the configuration file"

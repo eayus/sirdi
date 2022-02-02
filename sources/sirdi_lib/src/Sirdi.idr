@@ -33,6 +33,6 @@ recBuild ident = do
     mapErr BuildErr $ build pkg deps
 
 
-export
-buildAndRun : Initialised => (ident : Identifier) -> IOEither RecBuildError Int
-buildAndRun ident = recBuild ident >>= run
+--export
+--buildAndRun : Initialised => (ident : Identifier) -> IOEither RecBuildError Int
+--buildAndRun ident = recBuild ident >>= run
