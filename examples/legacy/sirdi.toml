@@ -1,0 +1,6 @@
+# [[dependencies]]
+# type = "git"
+# path = "https://github.com/stefan-hoeck/idris2-elab-util"
+
+
+dependencies = [ { type = "git", url = "https://gitlab.com/avidela/recombine", commit = "sirdi", path = "." } ]

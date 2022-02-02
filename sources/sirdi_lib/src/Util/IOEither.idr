@@ -26,6 +26,11 @@ embed = MkEitherT
 
 
 export
+fromEither : Either a b -> IOEither a b
+fromEither = MkEitherT . pure
+
+
+export
 die : HasIO io => Show e => e -> io a
 die x = do
     putStrLn "Dying with unexpected error:"

@@ -5,13 +5,17 @@ import Util.IOEither
 import Language.TOML
 import Language.TOML.Processing
 import System.Path
+import Core.Core
 import Data.List.Elem
 
-
 public export
-data ConfigError : Type where
-    TOMLError : TOML.Error -> ConfigError
-    ValidateError : TableError -> ConfigError
+data TOMLError : Type where
+
+    -- TOML could not be parsed
+    ParseError : TOML.Error -> TOMLError
+
+    -- TOML does not have the correct format
+    ValidateError : String -> TOMLError
 
 
 GitOpts : TableTy
@@ -61,9 +65,8 @@ toDesc [dependencies, main] =
         dependencies = map toIdent dependencies
     }
 
-
 export
-parseDesc : String -> Either ConfigError Description
+parseDesc : String -> Either TOMLError Description
 parseDesc s = do
-    tbl <- bimap TOMLError id $ parseTOML s
-    toDesc <$> (bimap ValidateError id $ processTable ConfigTy tbl)
+    tbl <- mapFst ParseError $ parseTOML s
+    toDesc <$> (mapFst ValidateError $ processTable ConfigTy tbl)

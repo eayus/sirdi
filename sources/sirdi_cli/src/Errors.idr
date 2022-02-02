@@ -12,7 +12,6 @@ Show InitError where
     show NoConfigFile = "No config file in current directory found!"
 
 
-public export
 Show ValueTy where
     show TString = "String"
     show TInteger = "Integer"
@@ -40,9 +39,9 @@ mutual
 
 
 public export
-Show ConfigError where
-    show (TOMLError x) = "TOML Error: \{show x}"
-    show (ValidateError x) = "Validation error: \{show x}"
+Show TOMLError where
+    show (ParseError x) = "Parse Error: \{show x}"
+    show (ValidateError x) = "Validation error: \{x}"
 
 
 public export
@@ -51,8 +50,9 @@ Show (FetchError ident) where
     show (BadGitCommit badCommit) = "Bad git commit \{badCommit}"
     show (BadGitPath badPath) = "Bad git path \{show badPath}"
     show (BadLocalPath badPath) = "Bad local path \{show badPath}"
-    show NoConfigFile = "No config file"
-    show (BadConfig x) = "Bad config \{show x}"
+    show (NoConfigFile path) = "Config file \{path} not found"
+    show (BadTOML x) = "Bad toml config \{show x}"
+    show (NoValidConfigFile x y) = "Could not parse TOML: \{show x}\nFallback to IPKG failed: \{show y}"
 
 
 public export

@@ -1,8 +1,12 @@
 module Util.Files
 
+import Data.Maybe
+
+import System
 import System.File.Process
 import System.File.ReadWrite
-
+import System.Path
+import System.Info
 
 readLinesOnto : HasIO io => (acc : List String) ->
                             (offset : Nat) ->
@@ -28,3 +32,23 @@ run cmd = do
         | Left err => pure Nothing
 
     pure (Just $ fastConcat lines)
+
+isAbsolute' : Path -> Bool
+isAbsolute' path =
+  if isWindows then
+    case path.volume of
+      Just (UNC _ _) => True
+      Just (Disk _) => path.hasRoot
+      Nothing => False
+  else
+    path.hasRoot
+
+export
+appendPath : (left : Path) -> (right : Path) -> Path
+appendPath left right =
+  if isAbsolute' right || isJust right.volume then
+    right
+  else if hasRoot right then
+    record { volume = left.volume } right
+  else
+    record { body = left.body ++ right.body, hasTrailSep = right.hasTrailSep } left
