@@ -73,35 +73,42 @@ recipesFrom ident = case isLegacy ident.source of
 |||
 ||| Returns a list of idris packages to add to "depends" in order to properly
 ||| depend on this package.
-compile : Tree Package -> M (List String)
-compile (Node (ident, config) deps) = case (isLegacy ident.source) of
-    True => pure [ ident.name ]
-    False => do
-        -- Build all dependencies first
-        depNames <- nub . join <$> traverse compile deps
+compile : Tree Package -> M (List (String, Bool))
+compile p@(Node (ident, config) deps) = case (isLegacy ident.source) of
+        True => pure [ (ident.asString, True) ]
+        False => do
+            -- Build all dependencies first
+            depLabels <- nub . join <$> traverse compile deps
 
-        unless !(exists ident.installDir) $ do
-            putStrLn "Building \{ident.name}"
-            let fname = "\{ident.sourceDir}/\{ident.name}.ipkg"
-            let ipkg = MkIpkg {
-                name = ident.name,
-                version = config.version,
-                depends = depNames,
-                modules = config.modules,
-                main = config.main,
-                exec = "main" <$ config.main,
-                passthru = config.passthru
-            }
+            unless !(exists ident.installDir) $ do
+                putStrLn "Building \{ident.name}"
+                let fname = "\{ident.sourceDir}/\{ident.name}.ipkg"
+                let ipkg = MkIpkg {
+                    name = ident.name,
+                    version = config.version,
+                    depends = map fst depLabels,
+                    modules = config.modules,
+                    main = config.main,
+                    exec = "main" <$ config.main,
+                    passthru = config.passthru
+                }
 
-            writeIpkg ipkg fname
+                writeIpkg ipkg fname
+                
+                let setpath  = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
+                let libpath  = "IDRIS2_LIBS=\{libPaths depLabels}"
 
-            let setpath = "IDRIS2_PACKAGE_PATH=$(realpath ./.build/deps)"
-            mSystem "\{setpath} idris2 --build \{fname}" "Failed to build \{ident.name}"
+                mSystem  "\{setpath} \{libpath} idris2 --build \{fname}" "Failed to build \{ident.name}"
 
-            installDep ident
+                installDep ident
 
-        pure $ ident.asString :: depNames
+            pure $ (ident.asString, False) :: depLabels
+    where
+        toLibPath : (String, Bool) -> String
+        toLibPath (libName, _) = "$(realpath .build/sources/\{libName}/lib)"
 
+        libPaths : List (String, Bool) -> String 
+        libPaths = concat . intersperse ":" . map toLibPath . filter (not . snd)
 
 makeDepTree : Identifier IsPinned -> M DepTree
 makeDepTree ident = map @{Compose} fst $ recipesFrom ident
