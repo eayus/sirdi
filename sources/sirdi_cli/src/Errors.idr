@@ -25,7 +25,7 @@ Show ValueTy where
 mutual
     public export
     Show TableError where
-        show (FieldError x y) = "In the definition of the field \{show x}...\n\{show y}"
+        show (FieldError x y) = "In the definition of the field \{show x}...\n\{assert_total $ show y}"
         show (ExpectedField x) = "Required field \{show x} not supplied"
         show (UnexpectedFields xs) = "Unexpected fields \{show xs}"
 
