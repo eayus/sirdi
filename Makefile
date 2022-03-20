@@ -1,4 +1,5 @@
-INSTALL_DIR = ~/.idris2/bin
+PREFIX = ~/.idris2
+INSTALL_DIR = $(PREFIX)/bin
 
 .PHONY: build prebuild test testbin clean install
 
