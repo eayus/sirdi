@@ -2,6 +2,7 @@ import System
 import System.Directory
 import System.Path
 import Control.ANSI
+import Data.String
 
 depends : List (String, String, Maybe String) -- package, repo, commit
 depends = [("hashable", "https://github.com/Z-snails/Idris2-hashable.git", Just "d6fec8c878057909b67f3d4da334155de4f37907")]
@@ -29,20 +30,20 @@ inDir dir act = do
 cloneDep : String -> String -> IO ()
 cloneDep pkg url =
     unless !(exists $ "build" </> pkg)
-        $ ignore $ system ["git", "clone", url, "build" </> pkg]
+        $ ignore $ system $ unwords ["git", "clone", url, "build" </> pkg]
 
 fetchDep : (String, String, Maybe String) -> IO ()
 fetchDep (pkg, url, commit) = do
     cloneDep pkg url
     whenJust commit
         $ \commit => ignore $ inDir ("build" </> pkg)
-            $ ignore $ system ["git", "checkout", "--detach", commit]
+            $ ignore $ system $ unwords ["git", "checkout", "--detach", commit]
 
 buildDep : (String, String, Maybe String) -> IO ()
 buildDep (pkg, url, _) = do
     Just 0 <- inDir ("build" </> pkg) $ do
         putStrLn "building \{pkg}"
-        system ["idris2", "--build", pkg <.> "ipkg"]
+        system $ unwords ["idris2", "--build", pkg <.> "ipkg"]
         | Nothing => printError "failed to clone git repository: \{url}"
         | Just code => printError "failed to build package, code: \{show code}"
     pure ()
