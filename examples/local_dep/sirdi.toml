@@ -4,3 +4,4 @@
 
 
 dependencies = [ { type = "local", path = "../simple" } ]
+main = "Main"
