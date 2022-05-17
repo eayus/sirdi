@@ -14,5 +14,6 @@ modules = Sirdi
        , Util.IOEither
        , Util.Files
        , Util.Git
+       , Util.Ipkg
 
 sourcedir = "src"

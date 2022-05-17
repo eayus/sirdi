@@ -16,4 +16,4 @@ export
 run : Initialised => (pkg : Package Built ident) -> IOEither (RunError pkg) Int
 run pkg with (pkg.description.main) proof p
   _ | Nothing = throw NoMainSpecified
-  _ | Just _  = system $ show $ ((outputsDir /> pkg.identHash') /> "exec") /> "main"
+  _ | Just _  = system $ show $ (((sirdiDir /> pkg.identHash') /> "build") /> "exec") /> "main"

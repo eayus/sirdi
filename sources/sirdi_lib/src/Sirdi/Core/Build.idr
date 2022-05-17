@@ -24,6 +24,9 @@ import IdrisPaths
 import Idris.Version
 import Idris.Env
 
+import Util.Ipkg
+import System
+
 
 public export
 data BuildError : Type where
@@ -31,94 +34,85 @@ data BuildError : Type where
 
 
 public export
-BuiltDepsFor : Package Fetched ident -> Type
-BuiltDepsFor pkg = All (Package Built) (pkg.description.dependencies)
+record BuildTree (ident : Identifier) where
+    constructor MkBuildTree
+    pkg : Package Built ident
+    depTrees : All BuildTree pkg.description.dependencies
 
 
+recursiveDepHashes : All BuildTree pkg.description.dependencies -> List String
+recursiveDepHashes builtDeps = concat $ mapAll f builtDeps
+    where
+        f : BuildTree ident -> List String
+        f bd = bd.pkg.identHash' :: recursiveDepHashes bd.depTrees
 
 
-doBuildCore : Ref Ctxt Defs
-           => Ref Syn SyntaxInfo
-           => Ref ROpts REPLOpts
-           => (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> Core ()
-doBuildCore pkg deps = do
-    bprefix <- coreLift $ idrisGetEnv "IDRIS2_PREFIX"
-    setPrefix (fromMaybe yprefix bprefix)
+removeIdrSuffix : String -> String
+removeIdrSuffix = pack . go . unpack
+    where
+        go : List Char -> List Char
+        go = reverse . drop 4 . reverse
 
-    -- Set the source dir
-    setSourceDir $ Just $ show $ sourcesDir /> pkg.identHash'
+replaceSlash : String -> String
+replaceSlash = pack . go . unpack
+    where
+        replace : Char -> Char
+        replace '/' = '.'
+        replace c   = c
 
-    -- Set the build dir
-    setBuildDir $ show $ outputsDir /> pkg.identHash'
-
-    defs <- get Ctxt
-    addDataDir (prefix_dir (dirs (options defs)) </>
-                        ("idris2-" ++ showVersion False version) </> "support")
-
-    addLibDir (prefix_dir (dirs (options defs)) </>
-                        ("idris2-" ++ showVersion False version) </> "lib")
-
-    -- Where to look for legacy stuff
-    addPackageDir $ yprefix ++ "/idris2-0.5.1"
-
-    -- Load prelude and base
-    addPkgDir "base" anyBounds
-    addPkgDir "prelude" anyBounds
-
-    -- Tell Idris where dependencies are
-    _ <- traverseAll' (\dep => addExtraDir $ show $ (outputsDir /> dep.identHash') /> "ttc") deps
-
-    Just contents <- coreLift $ run "find \{show $ sourcesDir /> pkg.identHash'} -type f -name \"*.idr\""
-        | Nothing => coreLift $ die "Failed to execute tree"
+        go : List Char -> List Char
+        go = map replace
 
 
-
-    let modules = lines contents
-    errs <- buildAll modules
-
-    coreLift $ putStrLn "Build errors:"
-    coreLift $ print errs
-
-
-    case pkg.description.main of
-         Just mainMod => do
-            let mainNS = mkNamespace mainMod
-            let mainMI = nsAsModuleIdent mainNS
-            mainSrc <- nsToSource EmptyFC mainMI
-
-            m <- newRef MD (initMetadata (PhysicalIdrSrc mainMI))
-            u <- newRef UST initUState
-
-            let entryPoint = NS mainNS (UN $ Basic "main")
-            let executableName = "main"
-
-            ignore $ loadMainFile mainSrc
-            ignore $ compileExp (PRef replFC entryPoint) executableName
-         Nothing => pure ()
-
-
-doBuildCore' : (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> Core ()
-doBuildCore' pkg deps = do
-    c <- newRef Ctxt !(initDefs)
-    s <- newRef Syn initSyntax
-    o <- newRef ROpts (defaultOpts (Just "example-fname") (REPL NoneLvl) [])
-
-    doBuildCore pkg deps
-
-
-doBuild : (pkg : Package Fetched ident) -> BuiltDepsFor pkg -> IOEither BuildError ()
+doBuild : (pkg : Package Fetched ident) -> All BuildTree pkg.description.dependencies -> IOEither BuildError ()
 doBuild pkg deps = do
-    let dir = outputsDir /> pkg.identHash'
+    let hash = pkg.identHash'
+    let dir = sirdiDir /> hash
+    let srcDir = dir /> "src"
+    let desc = pkg.description
+    let ipkgPath = dir /> hash <.> "ipkg"
 
-    unless !(exists $ show dir) (do
-        dieOnLeft $ createDir $ show dir
-        mapErr CompileError $ coreToIOEither $ doBuildCore' pkg deps)
+
+    Just findOutput <- run "find \{show $ srcDir} -type f -name \"*.idr\" -exec realpath --relative-to \{show $ srcDir} {} \\\;"
+        | Nothing => die "Failed to execute 'find' to find modules"
+
+    let modulePaths = lines findOutput
+
+    let modules = map (replaceSlash . removeIdrSuffix) modulePaths
+
+
+    -- How do we want to handle recursive dependencies.
+    --let depends = mapAll (.identHash') deps
+    let depends = recursiveDepHashes deps
+
+    dieOnLeft $ createDir $ show $ dir /> "depends"
+
+    ignore $ traverse (\depHash => do
+        let depDir = ((sirdiDir /> depHash) /> "build") /> "ttc"
+        let target = (dir /> "depends") /> depHash
+
+        --system "ln -s \{show depDir} \{show target}"
+        system "cp -r \{show depDir} \{show target}"
+        ) depends
+
+    let ipkg = MkIpkg {
+        name = hash,
+        depends = depends,
+        modules = modules,
+        main = desc.main,
+        exec = desc.main $> "main" }
+
+    dieOnLeft $ writeIpkg ipkg $ show ipkgPath
+
+    ignore $ system $ "idris2 --build " ++ show ipkgPath
+
+    ignore $ system $ "rm -r " ++ (show $ dir /> "depends")
 
 
 export
 build : Initialised
      => (pkg : Package Fetched ident)
-     -> BuiltDepsFor pkg
+     -> All BuildTree pkg.description.dependencies
      -> IOEither BuildError (Package Built ident)
 build pkg deps = doBuild pkg deps $> coerceState pkg
 

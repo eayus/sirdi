@@ -3,7 +3,7 @@ module Simple
 
 export
 sayHello : IO ()
-sayHello = putStrLn "Hello from Sirdi!"
+sayHello = putStrLn "Hello from Sirdi 2!"
 
 
 main : IO ()

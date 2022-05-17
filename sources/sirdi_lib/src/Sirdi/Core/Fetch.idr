@@ -88,15 +88,22 @@ export
 fetch : Initialised => (ident : Identifier) -> IOEither (FetchError ident) (Package Fetched ident)
 fetch (Local path) = do
 
-    let identHash = show $ hash "local-\{show path}"
-    let destDir = sourcesDir /> identHash
+    let identHash = "local" ++ (show $ hash $ show path)
+    let pkgDir = sirdiDir /> identHash
+    let destDir = pkgDir /> "src"
 
-    ignore $ system "cp -r \{show path}/src \{show destDir}/"
+    unless !(exists $ show pkgDir) (dieOnLeft $ createDir $ show pkgDir)
+
+    ignore $ system "rm -rf \{show destDir}"
+
+    ignore $ system "cp -r \{show path}/src \{show destDir}"
 
     configFilePackage path identHash
 
 
 fetch (Git url commit path) = do
+    ?git
+  {-
     -- The hash that identifies this package
     let identHash = show $ hash "git-\{commit}"
     -- The destination folder where all the sources live
@@ -122,3 +129,4 @@ fetch (Git url commit path) = do
 
     -- find and read the TOML file
     configFilePackage path identHash
+    -}

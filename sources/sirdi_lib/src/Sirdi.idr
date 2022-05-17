@@ -23,14 +23,29 @@ data RecBuildError : Type where
     BuildErr : BuildError -> RecBuildError
 
 
+
+export
+buildTree : Initialised
+         => (ident : Identifier)
+         -> IOEither RecBuildError (BuildTree ident)
+buildTree ident = do
+    pkg <- mapErr (FetchErr ident) (fetch ident)
+    deps <- mapM buildTree pkg.description.dependencies
+    pkg <- mapErr BuildErr $ build pkg deps
+    pure $ MkBuildTree pkg deps
+
+
 export
 recBuild : Initialised
         => (ident : Identifier)
         -> IOEither RecBuildError (Package Built ident)
+recBuild ident = (.pkg) <$> buildTree ident
+{-
 recBuild ident = do
     pkg <- mapErr (FetchErr ident) (fetch ident)
     deps <- mapM recBuild pkg.description.dependencies
     mapErr BuildErr $ build pkg deps
+-}
 
 
 --export

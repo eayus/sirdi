@@ -23,6 +23,6 @@ init = do
     unless !(exists configName) (throw NoConfigFile)
 
     unless !(exists $ show sirdiDir) (do
-        dieOnLeft $ createDir $ show sirdiDir
-        dieOnLeft $ createDir $ show sourcesDir
-        dieOnLeft $ createDir $ show outputsDir)
+        dieOnLeft $ createDir $ show sirdiDir)
+        --dieOnLeft $ createDir $ show sourcesDir
+        --dieOnLeft $ createDir $ show outputsDir)

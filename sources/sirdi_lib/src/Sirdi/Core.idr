@@ -47,11 +47,5 @@ export
 sirdiDir : Path
 sirdiDir = parse ".sirdi"
 
-sourcesDir : Path
-sourcesDir = sirdiDir /> "sources"
-
-outputsDir : Path
-outputsDir = sirdiDir /> "outputs"
-
 configName : String
 configName = "sirdi.toml"
