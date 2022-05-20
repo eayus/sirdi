@@ -5,7 +5,6 @@ import Util.IOEither
 import Language.TOML
 import Language.TOML.Processing
 import System.Path
-import Core.Core
 import Data.List.Elem
 
 public export
@@ -58,15 +57,15 @@ toIdent (("local" ** (There Here)) :: opts) = toLocal opts
 toIdent _ = assert_total $ idris_crash "Impossible case toIdent" 
 
 
-toDesc : TableOf ConfigTy -> Description
+toDesc : TableOf ConfigTy -> Description ident
 toDesc [dependencies, main] =
     MkDescription {
-        main = main,
-        dependencies = map toIdent dependencies
+        main' = main,
+        deps' = map toIdent dependencies
     }
 
 export
-parseDesc : String -> Either TOMLError Description
+parseDesc : String -> Either TOMLError (Description ident)
 parseDesc s = do
     tbl <- mapFst ParseError $ parseTOML s
     toDesc <$> (mapFst ValidateError $ processTable ConfigTy tbl)

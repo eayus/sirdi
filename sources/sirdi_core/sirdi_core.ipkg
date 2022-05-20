@@ -1,0 +1,16 @@
+package sirdi_lib
+
+depends = toml
+    , contrib
+    , hashable
+
+modules = Sirdi.Core
+    , Sirdi.Core.Paths
+    , Sirdi.Core.Init
+    , Sirdi.Core.Fetch
+    , Sirdi.Core.Info
+    , Sirdi.Core.Build
+    , Sirdi.Core.Ipkg
+    , Sirdi.Core.Util
+
+sourcedir = "src"

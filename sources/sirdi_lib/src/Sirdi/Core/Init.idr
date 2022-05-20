@@ -2,7 +2,6 @@ module Sirdi.Core.Init
 
 import Sirdi.Core
 import Util.IOEither
-import System.File
 import System.Directory
 import System.Path
 
@@ -12,17 +11,16 @@ data InitError : Type where
     NoConfigFile : InitError
 
 
-export
-Initialised : Type
-Initialised = ()
+0 initFetched : Pred Identifier
+0 initBuilt : Pred Identifier
 
 
 export
-init : IOEither InitError Initialised
-init = do
-    unless !(exists configName) (throw NoConfigFile)
+initStore : (cont : forall fetched, built. (1 store : Store fetched built) -> IOEither err a)
+         -> IOEither (Either InitError err) a
+initStore cont = do
+    unless !(exists configName) (throw $ Left NoConfigFile)
 
-    unless !(exists $ show sirdiDir) (do
-        dieOnLeft $ createDir $ show sirdiDir)
-        --dieOnLeft $ createDir $ show sourcesDir
-        --dieOnLeft $ createDir $ show outputsDir)
+    unless !(exists $ show sirdiDir) (dieOnLeft $ createDir $ show sirdiDir)
+
+    mapErr Right $ cont {fetched = initFetched, built = initBuilt} MkStore

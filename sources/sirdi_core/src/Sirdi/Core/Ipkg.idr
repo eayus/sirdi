@@ -1,11 +1,10 @@
-module Util.Ipkg
+module Sirdi.Core.Ipkg
 
 import Data.List
 import Data.String
+import System
 import System.File.ReadWrite
 import System.Path
-import Util.Files
-import Util.IOEither
 
 
 public export
@@ -56,8 +55,8 @@ replaceSlash = pack . go . unpack
 export
 findModules : HasIO io => Path -> io (List String)
 findModules path = do
-    Just findOutput <- run "find \{show path} -type f -name \"*.idr\" -exec realpath --relative-to \{show path} {} \\\;"
-        | Nothing => die "Failed to execute 'find' to find modules"
+    (findOutput, 0) <- run "find \{show path} -type f -name \"*.idr\" -exec realpath --relative-to \{show path} {} \\\;"
+        | (output, _) => die "Failed to execute 'find' to find modules: \{show output}"
 
     let modulePaths = lines findOutput
 

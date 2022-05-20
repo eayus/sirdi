@@ -1,6 +1,16 @@
 module Sirdi
 
 import public Sirdi.Core
+import public Sirdi.Core.Fetch
+import public Sirdi.Core.Build
+
+
+
+buildTree : 
+
+
+{-
+import public Sirdi.Core
 import public Sirdi.Core.Init
 import public Sirdi.Core.Fetch
 import public Sirdi.Core.Build
@@ -40,14 +50,4 @@ recBuild : Initialised
         => (ident : Identifier)
         -> IOEither RecBuildError (Package Built ident)
 recBuild ident = (.pkg) <$> buildTree ident
-{-
-recBuild ident = do
-    pkg <- mapErr (FetchErr ident) (fetch ident)
-    deps <- mapM recBuild pkg.description.dependencies
-    mapErr BuildErr $ build pkg deps
 -}
-
-
---export
---buildAndRun : Initialised => (ident : Identifier) -> IOEither RecBuildError Int
---buildAndRun ident = recBuild ident >>= run

@@ -1,118 +1,77 @@
 module Sirdi.Core.Build
 
 import Sirdi.Core
-import Sirdi.Core.Init
-import Core.Directory
-import Core.Context
-import Core.Metadata
-import Core.UnifyState
+import Util.Files
+import Util.Ipkg
+import Util.All
+import Util.IOEither
+
+import Data.List
 import Data.String
 import Data.List.Quantifiers
-import Util.IOEither
-import Util.All
-import Util.Files
-import Compiler.Common
-import Idris.ModTree
-import Idris.Syntax
-import Idris.REPL.Opts
-import Idris.SetOptions
-import Idris.Package
-import Idris.REPL
-import System.Path
-import System.Directory
-import IdrisPaths
-import Idris.Version
-import Idris.Env
-
-import Util.Ipkg
 import System
+import System.Directory
 
 
 public export
-data BuildError : Type where
-    CompileError : Core.Error -> BuildError
+record DepTree (root : Identifier) where
+    constructor DepNode
+    desc : Description root
+    children : All DepTree desc.deps
 
 
+-- Some weird idris bug prevents this from being a record
 public export
-record BuildTree (ident : Identifier) where
-    constructor MkBuildTree
-    pkg : Package Built ident
-    depTrees : All BuildTree pkg.description.dependencies
+data RecBuilt : Pred Identifier -> Identifier -> Type where
+    RecNode : built root -> (desc : Description root) -> All (RecBuilt built) desc.deps -> RecBuilt built root
 
 
-recursiveDepHashes : All BuildTree pkg.description.dependencies -> List String
-recursiveDepHashes builtDeps = concat $ mapAll f builtDeps
-    where
-        f : BuildTree ident -> List String
-        f bd = bd.pkg.identHash' :: recursiveDepHashes bd.depTrees
+depHashes : DepTree root -> List String
+depHashes (DepNode desc children) = map (.hash) desc.deps ++ concat (mapAll depHashes children)
 
 
-removeIdrSuffix : String -> String
-removeIdrSuffix = pack . go . unpack
-    where
-        go : List Char -> List Char
-        go = reverse . drop 4 . reverse
+loadDep : Path -> String -> IO ()
+loadDep dependsDir hash = do
+    let ttcDir = ((sirdiDir /> hash) /> "build") /> "ttc"
+    let targetDir = dependsDir /> hash
 
-replaceSlash : String -> String
-replaceSlash = pack . go . unpack
-    where
-        replace : Char -> Char
-        replace '/' = '.'
-        replace c   = c
-
-        go : List Char -> List Char
-        go = map replace
+    ignore $ system "cp -r \{show ttcDir} \{show targetDir}"
 
 
-doBuild : (pkg : Package Fetched ident) -> All BuildTree pkg.description.dependencies -> IOEither BuildError ()
-doBuild pkg deps = do
-    let hash = pkg.identHash'
-    let dir = sirdiDir /> hash
-    let srcDir = dir /> "src"
-    let desc = pkg.description
-    let ipkgPath = dir /> hash <.> "ipkg"
+build' : (ident : Identifier) -> DepTree ident -> IO ()
+build' ident tree = do
+    let packageDir = sirdiDir /> ident.hash
+    let sourceDir  = packageDir /> "src"
+    let dependsDir = packageDir /> "depends"
+    let ipkgPath   = packageDir /> ident.hash <.> "ipkg"
 
+    modules <- findModules sourceDir
 
-    Just findOutput <- run "find \{show $ srcDir} -type f -name \"*.idr\" -exec realpath --relative-to \{show $ srcDir} {} \\\;"
-        | Nothing => die "Failed to execute 'find' to find modules"
+    let depends = depHashes tree
 
-    let modulePaths = lines findOutput
+    dieOnLeft $ createDir $ show dependsDir
+    ignore $ traverse (loadDep dependsDir) depends
 
-    let modules = map (replaceSlash . removeIdrSuffix) modulePaths
-
-
-    -- How do we want to handle recursive dependencies.
-    --let depends = mapAll (.identHash') deps
-    let depends = recursiveDepHashes deps
-
-    dieOnLeft $ createDir $ show $ dir /> "depends"
-
-    ignore $ traverse (\depHash => do
-        let depDir = ((sirdiDir /> depHash) /> "build") /> "ttc"
-        let target = (dir /> "depends") /> depHash
-
-        --system "ln -s \{show depDir} \{show target}"
-        system "cp -r \{show depDir} \{show target}"
-        ) depends
 
     let ipkg = MkIpkg {
-        name = hash,
-        depends = depends,
-        modules = modules,
-        main = desc.main,
-        exec = desc.main $> "main" }
+        iname = ident.hash,
+        idepends = depends,
+        imodules = modules,
+        imain = tree.desc.main,
+        iexec = tree.desc.main $> "main" }
 
     dieOnLeft $ writeIpkg ipkg $ show ipkgPath
 
     ignore $ system $ "idris2 --build " ++ show ipkgPath
 
-    ignore $ system $ "rm -r " ++ (show $ dir /> "depends")
+    ignore $ system $ "rm -r " ++ show dependsDir
 
 
 export
-build : Initialised
-     => (pkg : Package Fetched ident)
-     -> All BuildTree pkg.description.dependencies
-     -> IOEither BuildError (Package Built ident)
-build pkg deps = doBuild pkg deps $> coerceState pkg
-
+build : (ident : Identifier)
+     -> (tree : DepTree ident)
+     -> (0 depsBuilt : All (RecBuilt built) tree.desc.deps)
+     -> (0 isFetched : fetched ident)
+     -> (1 store : Store fetched built)
+     -> IO (Store fetched (Add ident built))
+build ident tree _ _ MkStore = build' ident tree $> MkStore

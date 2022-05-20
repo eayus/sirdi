@@ -1,6 +1,9 @@
 module Sirdi.Core
 
-import System.Path
+import public System.Path
+import public Util.Pred
+
+import Data.Hashable
 
 
 public export
@@ -9,43 +12,37 @@ data Identifier : Type where
     Git : (url : String) -> (commit : String) -> (path : Path) -> Identifier
 
 
-public export
-record Description where
+export
+record Description (ident : Identifier) where
     constructor MkDescription
-    main : Maybe String
-    dependencies : List Identifier
+    main' : Maybe String
+    deps' : List Identifier
 
 
-public export
-data PackageState : Type where
-    Fetched : PackageState
-    Built : PackageState
+-- TODO: Remove the indices of this, and use a separate proof..
+export
+record Store (fetched : Pred Identifier) (built : Pred Identifier) where
+    constructor MkStore
 
 
 export
-record Package (state : PackageState) (ident : Identifier) where
-    constructor MkPackage
-    identHash : String
-    desc : Description
-
-
-(.identHash') : Package state ident -> String
-(.identHash') = (.identHash)
-
-
-coerceState : Package state ident -> Package state' ident
-coerceState (MkPackage identHash desc) = MkPackage identHash desc
+(.main) : Description ident -> Maybe String
+(.main) = (.main')
 
 
 export
-(.description) : Package state ident -> Description
-(.description) = (.desc)
+(.deps) : Description ident -> List Identifier
+(.deps) = (.deps')
 
-
--- Internal directories
 
 sirdiDir : Path
 sirdiDir = parse ".sirdi"
 
+
 configName : String
 configName = "sirdi.toml"
+
+
+(.hash) : Identifier -> String
+(.hash) (Local path)          = "local" ++ (show $ hash $ show path)
+(.hash) (Git url commit path) = ?identHash_rhs_2

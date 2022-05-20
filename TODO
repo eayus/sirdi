@@ -1,0 +1,37 @@
+Problem:
+
+    Currently we're not rebuilding when the user makes changes to the config file.
+
+    Easy example:
+
+        Build project with a config file without the "main" field.
+
+        Now add "main" field.
+
+        Run project.
+
+        Get internal error since an executable was never generated when the project was built.
+
+
+
+We are not checking the reuslt of "system" commands for failure, so if building fails for example, then
+we still try and run the non-existent executable.
+
+
+
+Idris2 Bugs:
+
+    Calling a dependency "local-1", and sticking it in the "depends" folder means Idris doesn't detect it..
+
+
+    If the "depends" folder contains a symlink to the dependency, Idris does not seem to find the dependency.
+    To test this, try changing the "cp -r" to "ln -s" in "Sirdi.Core.Build".
+
+
+    Mistyping an Idris CLI argument still tries to contiunue anyway. E.g. typing "idris2 --instal" will open the
+    REPL, since the "--install" flag is mistyped.
+
+
+Come up with more asccurate type for URLs and commit hashes
+
+Maybe have a type for 'Hash ident' rather than just ad-hoc strings..
